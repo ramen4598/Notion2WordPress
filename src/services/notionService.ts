@@ -288,7 +288,7 @@ class NotionService {
    */
   private handleCalloutRecursively(mdBlocks: MdBlock[]): MdBlock[] {
     // 2025.11.12 notion-to-md version 3.1.9
-    // notion-to-md converts parent of callout block to html,
+    // notion-to-md converts parent of callout block to html, // TODO: 오타  html -> markdown
     // but does not handle children blocks separately.
     // So we convert callout blocks to paragraph blocks,
     // and move children blocks to the same level.

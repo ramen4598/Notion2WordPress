@@ -79,7 +79,7 @@ class SyncOrchestrator {
 
       syncJob.status = syncJob.pagesFailed === 0 ? JobStatus.Completed : JobStatus.Failed;
 
-      await db.updateSyncJob(syncJob.jobId, {
+      db.updateSyncJob(syncJob.jobId, {
         status: syncJob.status,
         last_sync_timestamp: new Date().toISOString(),
       });
@@ -105,7 +105,7 @@ class SyncOrchestrator {
         },
       ];
 
-      await db.updateSyncJob(syncJob.jobId, {
+      db.updateSyncJob(syncJob.jobId, {
         status: syncJob.status,
         error_message: err.message,
       });
@@ -149,7 +149,7 @@ class SyncOrchestrator {
       }
 
       // Update job progress
-      await db.updateSyncJob(syncJob.jobId, {
+      db.updateSyncJob(syncJob.jobId, {
         pages_processed: syncJob.pagesProcessed,
         pages_succeeded: syncJob.pagesSucceeded,
         pages_failed: syncJob.pagesFailed,
@@ -188,12 +188,12 @@ class SyncOrchestrator {
       syncJobItem.wpPostId = post.id;
 
       // Update job item with post ID
-      await db.updateSyncJobItem(syncJobItem.id, {
+      db.updateSyncJobItem(syncJobItem.id, {
         wp_post_id: post.id,
       });
 
       // Create page-post mapping
-      await db.createPagePostMap({
+      db.createPagePostMap({
         notion_page_id: page.id,
         wp_post_id: post.id,
       });
@@ -202,7 +202,7 @@ class SyncOrchestrator {
       await notionService.updatePageStatus(page.id, NPStatus.Done);
 
       // Mark job item as success
-      await db.updateSyncJobItem(syncJobItem.id, {
+      db.updateSyncJobItem(syncJobItem.id, {
         status: JobItemStatus.Success,
       });
 
@@ -277,7 +277,7 @@ class SyncOrchestrator {
     imageMap: Map<string, string>,
     image: ImageReference
   ): Promise<void> {
-    const assetId = await db.createImageAsset({
+    const assetId = db.createImageAsset({
       sync_job_item_id: syncJobItem.id,
       notion_page_id: syncJobItem.pageId,
       notion_block_id: image.blockId,
@@ -310,7 +310,7 @@ class SyncOrchestrator {
       syncJobItem.uploadedMediaIds.push(media.id);
 
       // Update image asset record
-      await db.updateImageAsset(assetId, {
+      db.updateImageAsset(assetId, {
         wp_media_id: media.id,
         wp_media_url: media.url,
         status: ImageAssetStatus.Uploaded,
@@ -324,7 +324,7 @@ class SyncOrchestrator {
       const err = asError(error);
 
       // Update image asset record
-      await db.updateImageAsset(assetId, {
+      db.updateImageAsset(assetId, {
         status: ImageAssetStatus.Failed,
         error_message: err.message,
       });
@@ -368,12 +368,14 @@ class SyncOrchestrator {
 
     // Mark job item as failed
     if (jobItemId) {
-      db.updateSyncJobItem(jobItemId, {
-        status: JobItemStatus.Failed,
-        error_message: errorMessage,
-      }).catch((error: unknown) => {
+      try {
+        db.updateSyncJobItem(jobItemId, {
+          status: JobItemStatus.Failed,
+          error_message: errorMessage,
+        });
+      } catch (error: unknown) {
         logger.warn(`Failed to update job item ${jobItemId} status`, asError(error));
-      });
+      }
     }
   }
 
@@ -385,7 +387,7 @@ class SyncOrchestrator {
   private async queryPages(): Promise<NotionPage[]> {
     try {
       // Query Notion for pages to sync
-      const lastSyncTimestamp = await db.getLastSyncTimestamp();
+      const lastSyncTimestamp = db.getLastSyncTimestamp();
       return await notionService.queryPages({
         lastSyncTimestamp: lastSyncTimestamp || undefined,
         statusFilter: NPStatus.Adding,
@@ -409,7 +411,7 @@ class SyncOrchestrator {
   private async createSyncJob(jobType: JobType): Promise<SyncJob> {
     try {
       return {
-        jobId: await db.createSyncJob(jobType),
+        jobId: db.createSyncJob(jobType),
         jobType: jobType,
         status: JobStatus.Running,
         pagesProcessed: 0,
@@ -433,7 +435,7 @@ class SyncOrchestrator {
    */
   private async createSyncJobItem(jobId: number, pageId: string): Promise<SyncJobItem> {
     try {
-      const jobItemId = await db.createSyncJobItem({
+      const jobItemId = db.createSyncJobItem({
         sync_job_id: jobId,
         notion_page_id: pageId,
         status: JobItemStatus.Pending,

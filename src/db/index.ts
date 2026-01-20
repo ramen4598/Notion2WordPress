@@ -1,4 +1,4 @@
-// Description: Database service using better-sqlite3
+// Description: Database service using better-sqlite3 (synchronous API)
 // for managing sync jobs, job items, image assets, and page-post mappings.
 
 import DatabaseConstructor, { type Database as BetterSqliteDatabase } from 'better-sqlite3';
@@ -61,7 +61,14 @@ export interface PagePostMap {
 class DatabaseService {
   private db: BetterSqliteDatabase | null = null;
 
-  async initialize(): Promise<void> {
+  private get(): BetterSqliteDatabase {
+    if (!this.db) {
+      throw new Error('Database not initialized. Call initialize() first.');
+    }
+    return this.db;
+  }
+
+  initialize(): void {
     const dbPath = DEFAULT_DATABASE_PATH;
     const dbDir = path.dirname(dbPath);
 
@@ -74,38 +81,37 @@ class DatabaseService {
     try {
       this.db = new DatabaseConstructor(dbPath, {});
       logger.info(`Database connected: ${dbPath}`);
-      await this.initSchema();
-    } catch (error : unknown) {
+      this.initSchema();
+    } catch (error: unknown) {
       const err = asError(error);
       logger.error('Failed to open database', err);
       throw err;
     }
   }
 
-  private async initSchema(): Promise<void> {
+  private initSchema(): void {
     const schemaPath = DEFAULT_SCHEMA_PATH;
     const schema = fs.readFileSync(schemaPath, 'utf-8');
 
     try {
-      // What happens if the existing schema exists? 
-      // -> Since schema.sql includes IF NOT EXISTS, there is no problem
-      this.db!.exec(schema); // ! means db must not be null here
+      // schema.sql uses IF NOT EXISTS, so repeated initialization is safe.
+      this.get().exec(schema);
       logger.info('Database schema initialized');
-    } catch (error : unknown) {
+    } catch (error: unknown) {
       const err = asError(error);
       logger.error('Failed to initialize database schema', err);
       throw err;
     }
   }
 
-  async close(): Promise<void> {
+  close(): void {
     if (!this.db) return;
 
     try {
-      this.db!.close();
+      this.get().close();
       logger.info('Database connection closed');
       this.db = null;
-    } catch (error : unknown) {
+    } catch (error: unknown) {
       const err = asError(error);
       logger.error('Failed to close database', err);
       throw err;
@@ -113,23 +119,23 @@ class DatabaseService {
   }
 
   // Sync Jobs
-  async createSyncJob(jobType: 'scheduled' | 'manual'): Promise<number> {
+  createSyncJob(jobType: JobType): number {
     const sql = `
       INSERT INTO sync_jobs (job_type, status, pages_processed, pages_succeeded, pages_failed)
       VALUES (?, ?, 0, 0, 0)
     `;
 
-    const stmt = this.db!.prepare(sql);
+    const stmt = this.get().prepare(sql);
     const info = stmt.run(jobType, JobStatus.Running);
     const id = Number(info.lastInsertRowid);
     logger.info(`Created sync job with ID: ${id}`);
     return id;
   }
 
-  async updateSyncJob(
+  updateSyncJob(
     id: number,
     updates: Partial<Omit<SyncJob, 'id' | 'started_at'>> // id and started_at are not updatable
-  ): Promise<void> {
+  ): void {
     const fields: string[] = [];
     const values: any[] = [];
 
@@ -166,19 +172,19 @@ class DatabaseService {
     const sql = `UPDATE sync_jobs SET ${fields.join(', ')} WHERE id = ?`;
     values.push(id);
 
-    const stmt = this.db!.prepare(sql);
+    const stmt = this.get().prepare(sql);
     stmt.run(...values);
   }
 
-  async getSyncJob(id: number): Promise<SyncJob | null> {
+  getSyncJob(id: number): SyncJob | null {
     const sql = 'SELECT * FROM sync_jobs WHERE id = ?';
 
     try {
-      const row = this.db!.prepare(sql).get(id) as SyncJob | undefined;
+      const row = this.get().prepare(sql).get(id) as SyncJob | undefined;
       // Nullish Coalescing Operator
       // return if row is undefined and null, return right side value
-      return row ?? null; 
-    } catch (error : unknown) {
+      return row ?? null;
+    } catch (error: unknown) {
       const err = asError(error);
       logger.error(`Failed to get sync job ${id}`, err);
       throw err;
@@ -188,7 +194,7 @@ class DatabaseService {
   // Get the last successful sync timestamp
   // Used for incremental syncs
   // Returns null if no successful sync found
-  async getLastSyncTimestamp(): Promise<string | null> {
+  getLastSyncTimestamp(): string | null {
     const sql = `
       SELECT last_sync_timestamp
       FROM sync_jobs
@@ -198,7 +204,9 @@ class DatabaseService {
     `;
 
     try {
-      const row = this.db!.prepare(sql).get(JobStatus.Completed) as { last_sync_timestamp: string } | undefined;
+      const row = this.get().prepare(sql).get(JobStatus.Completed) as
+        | { last_sync_timestamp: string }
+        | undefined;
       const lastSyncTimestamp = row?.last_sync_timestamp ?? null;
       logger.info('Querying Notion pages', { lastSyncTimestamp });
       return lastSyncTimestamp;
@@ -210,28 +218,18 @@ class DatabaseService {
   }
 
   // Sync Job Items
-  async createSyncJobItem(
-    item: Omit<SyncJobItem, 'id' | 'created_at' | 'updated_at'>
-  ): Promise<number> {
+  createSyncJobItem(item: Omit<SyncJobItem, 'id' | 'created_at' | 'updated_at'>): number {
     const sql = `
       INSERT INTO sync_job_items (sync_job_id, notion_page_id, wp_post_id, status)
       VALUES (?, ?, ?, ?)
     `;
 
-    const stmt = this.db!.prepare(sql);
-    const info = stmt.run(
-      item.sync_job_id,
-      item.notion_page_id,
-      item.wp_post_id,
-      item.status,
-    );
+    const stmt = this.get().prepare(sql);
+    const info = stmt.run(item.sync_job_id, item.notion_page_id, item.wp_post_id, item.status);
     return Number(info.lastInsertRowid);
   }
 
-  async updateSyncJobItem(
-    id: number,
-    updates: Partial<Omit<SyncJobItem, 'id' | 'created_at'>>
-  ): Promise<void> {
+  updateSyncJobItem(id: number, updates: Partial<Omit<SyncJobItem, 'id' | 'created_at'>>): void {
     const fields: string[] = ["updated_at = datetime('now')"];
     const values: any[] = [];
 
@@ -251,12 +249,12 @@ class DatabaseService {
     const sql = `UPDATE sync_job_items SET ${fields.join(', ')} WHERE id = ?`;
     values.push(id);
 
-    const stmt = this.db!.prepare(sql);
+    const stmt = this.get().prepare(sql);
     stmt.run(...values);
   }
 
   // Image Assets
-  async createImageAsset(asset: Omit<ImageAsset, 'id' | 'created_at'>): Promise<number> {
+  createImageAsset(asset: Omit<ImageAsset, 'id' | 'created_at'>): number {
     const sql = `
       INSERT INTO image_assets (
         sync_job_item_id, notion_page_id, notion_block_id, notion_url,
@@ -264,7 +262,7 @@ class DatabaseService {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const stmt = this.db!.prepare(sql);
+    const stmt = this.get().prepare(sql);
     const info = stmt.run(
       asset.sync_job_item_id,
       asset.notion_page_id,
@@ -278,10 +276,7 @@ class DatabaseService {
     return Number(info.lastInsertRowid);
   }
 
-  async updateImageAsset(
-    id: number,
-    updates: Partial<Omit<ImageAsset, 'id' | 'created_at'>>
-  ): Promise<void> {
+  updateImageAsset(id: number, updates: Partial<Omit<ImageAsset, 'id' | 'created_at'>>): void {
     const fields: string[] = [];
     const values: any[] = [];
 
@@ -307,15 +302,15 @@ class DatabaseService {
     const sql = `UPDATE image_assets SET ${fields.join(', ')} WHERE id = ?`;
     values.push(id);
 
-    const stmt = this.db!.prepare(sql);
+    const stmt = this.get().prepare(sql);
     stmt.run(...values);
   }
 
-  async getImageAssetsByJobItem(syncJobItemId: number): Promise<ImageAsset[]> {
+  getImageAssetsByJobItem(syncJobItemId: number): ImageAsset[] {
     const sql = 'SELECT * FROM image_assets WHERE sync_job_item_id = ?';
 
     try {
-      const rows = this.db!.prepare(sql).all(syncJobItemId) as ImageAsset[];
+      const rows = this.get().prepare(sql).all(syncJobItemId) as ImageAsset[];
       return rows;
     } catch (error: unknown) {
       const err = asError(error);
@@ -325,24 +320,24 @@ class DatabaseService {
   }
 
   // Page Post Map
-  async createPagePostMap(map: Omit<PagePostMap, 'id' | 'created_at'>): Promise<number> {
+  createPagePostMap(map: Omit<PagePostMap, 'id' | 'created_at'>): number {
     const sql = `
       INSERT INTO page_post_map (notion_page_id, wp_post_id)
       VALUES (?, ?)
     `;
 
-    const stmt = this.db!.prepare(sql);
+    const stmt = this.get().prepare(sql);
     const info = stmt.run(map.notion_page_id, map.wp_post_id);
     const id = Number(info.lastInsertRowid);
     logger.info(`Created page-post mapping: ${map.notion_page_id} -> ${map.wp_post_id}`);
     return id;
   }
 
-  async getPagePostMap(notionPageId: string): Promise<PagePostMap | null> {
+  getPagePostMap(notionPageId: string): PagePostMap | null {
     const sql = 'SELECT * FROM page_post_map WHERE notion_page_id = ?';
 
     try {
-      const row = this.db!.prepare(sql).get(notionPageId) as PagePostMap | undefined;
+      const row = this.get().prepare(sql).get(notionPageId) as PagePostMap | undefined;
       return row ?? null;
     } catch (error: unknown) {
       const err = asError(error);

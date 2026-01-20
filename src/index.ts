@@ -15,7 +15,7 @@ async function main() {
 
   try {
     // Initialize database
-    await db.initialize();
+    db.initialize();
     logger.info('Database initialized successfully');
 
     // Schedule sync job
@@ -55,16 +55,16 @@ async function main() {
     // Keep the process running
 
     // 'SIGINT' is sent on Ctrl+C, 'SIGTERM' is sent by process managers
-    process.on('SIGINT', async () => {
+    process.on('SIGINT', () => {
       logger.info('Received SIGINT, shutting down gracefully');
-      await db.close();
+      db.close();
       process.exit(0);
     });
 
     // 'SIGTERM' is sent on termination signal, e.g., from Docker or Kubernetes
-    process.on('SIGTERM', async () => {
+    process.on('SIGTERM', () => {
       logger.info('Received SIGTERM, shutting down gracefully');
-      await db.close();
+      db.close();
       process.exit(0);
     });
   } catch (error: unknown) {

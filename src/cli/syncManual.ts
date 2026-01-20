@@ -18,15 +18,14 @@ async function main() {
   let result: ExecuteSyncJobResponse;
   try {
     // Initialize database
-    await db.initialize();
+    db.initialize();
     // Execute manual sync
     result = await syncOrchestrator.executeSyncJob(JobType.Manual);
     // Close database
-    await db.close();
-
+    db.close();
   } catch (error: unknown) {
     logger.error('Manual sync failed', asError(error));
-    await db.close();
+    db.close();
     process.exit(1);
   }
 

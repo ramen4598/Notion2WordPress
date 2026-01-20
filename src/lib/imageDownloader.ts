@@ -7,8 +7,6 @@ import { logger } from '../lib/logger.js';
 import { retryWithBackoff } from '../lib/retry.js';
 import { asError } from '../lib/utils.js';
 
-const VERSION = '1.0';
-
 export interface DownloadImageOptions {
   url: string;
   timeout?: number;
@@ -34,7 +32,7 @@ class ImageDownloader {
         responseType: 'arraybuffer',
         timeout,
         headers: {
-          'User-Agent': `Notion2WordPress/${VERSION}`,
+          'User-Agent': `Notion2WordPress`,
         },
       });
     };

@@ -82,6 +82,7 @@ src/
 - No auto-publish: All posts require manual admin approval in WordPress admin panel
 - No deletion sync: WordPress posts are retained even when deleted in Notion
 - No category/tag sync: WordPress defaults are used
+- No duplicate image check: There is no function to detect duplicate images or prevent uploads
 
 ## 🔒 Security
 

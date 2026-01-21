@@ -68,7 +68,7 @@ All credentials managed via environment variables:
 ## Limitations (MVP)
 
 - No update sync: only new pages processed
-- No idempotency: duplicate uploads allowed if status changed to `adding` multiple times
+- No duplicate image check: There is no function to detect duplicate images or prevent uploads
 - No auto-publish: all posts require manual admin approval
 - No Notion deletion sync: WordPress posts retained
 - No category/tag sync: WordPress defaults used

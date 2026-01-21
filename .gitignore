@@ -61,3 +61,6 @@ data/
 .github/prompts/speckit.*
 .specify/scripts/*
 .specify/templates/*
+
+# tmp
+tmp/

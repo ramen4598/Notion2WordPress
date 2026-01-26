@@ -4,6 +4,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    exclude: [
+      'node_modules/**',
+      'dist/**',
+      'tmp/**',
+      'specs/**',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -13,7 +19,8 @@ export default defineConfig({
         'tests/',
         '**/*.test.ts',
         '**/*.spec.ts',
-        'vitest.config.ts'
+        'vitest.config.ts',
+        'tmp/',
       ],
       thresholds: {
         lines: 80,

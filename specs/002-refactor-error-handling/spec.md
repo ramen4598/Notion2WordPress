@@ -303,6 +303,6 @@ private async syncImages(
 
 ## References
 
-- Tistory2WordPress codebase: `tmp/src/services/`
+- Tistory2WordPress codebase: `tmp/Tistory2WordPress/src/services/`
 - Tistory2WordPress error handling analysis: See comparison in Overview section
 - Current Notion2WordPress error handling: `src/services/`, `src/orchestrator/`, `src/lib/`

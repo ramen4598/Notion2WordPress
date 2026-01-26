@@ -61,16 +61,14 @@ export interface PagePostMap {
 class DatabaseService {
   private db: BetterSqliteDatabase | null = null;
 
-  private get(): BetterSqliteDatabase {
-    if (!this.db) {
-      throw new Error('Database not initialized. Call initialize() first.');
+  private getDb(): BetterSqliteDatabase {
+    if (this.db) {
+      return this.db;
     }
-    return this.db;
-  }
 
-  initialize(): void {
     const dbPath = DEFAULT_DATABASE_PATH;
     const dbDir = path.dirname(dbPath);
+    const schemaPath = DEFAULT_SCHEMA_PATH;
 
     // Create data directory if it doesn't exist
     if (!fs.existsSync(dbDir)) {
@@ -78,44 +76,29 @@ class DatabaseService {
       logger.info(`Created database directory: ${dbDir}`);
     }
 
-    try {
-      this.db = new DatabaseConstructor(dbPath, {});
-      logger.info(`Database connected: ${dbPath}`);
-      this.initSchema();
-    } catch (error: unknown) {
-      const err = asError(error);
-      logger.error('Failed to open database', err);
-      throw err;
-    }
-  }
-
-  private initSchema(): void {
-    const schemaPath = DEFAULT_SCHEMA_PATH;
-    const schema = fs.readFileSync(schemaPath, 'utf-8');
+    const db = new DatabaseConstructor(dbPath, {});
+    logger.info(`Database connected: ${dbPath}`);
 
     try {
+      const schemaSql = fs.readFileSync(schemaPath, 'utf-8');
       // schema.sql uses IF NOT EXISTS, so repeated initialization is safe.
-      this.get().exec(schema);
+      db.exec(schemaSql);
       logger.info('Database schema initialized');
     } catch (error: unknown) {
       const err = asError(error);
       logger.error('Failed to initialize database schema', err);
       throw err;
     }
+    this.db = db;
+    return this.db;
   }
 
-  close(): void {
+  closeDb(): void {
     if (!this.db) return;
 
-    try {
-      this.get().close();
-      logger.info('Database connection closed');
-      this.db = null;
-    } catch (error: unknown) {
-      const err = asError(error);
-      logger.error('Failed to close database', err);
-      throw err;
-    }
+    this.db.close();
+    this.db = null;
+    logger.info('Database connection closed');
   }
 
   // Sync Jobs
@@ -125,7 +108,7 @@ class DatabaseService {
       VALUES (?, ?, 0, 0, 0)
     `;
 
-    const stmt = this.get().prepare(sql);
+    const stmt = this.getDb().prepare(sql);
     const info = stmt.run(jobType, JobStatus.Running);
     const id = Number(info.lastInsertRowid);
     logger.info(`Created sync job with ID: ${id}`);
@@ -172,7 +155,7 @@ class DatabaseService {
     const sql = `UPDATE sync_jobs SET ${fields.join(', ')} WHERE id = ?`;
     values.push(id);
 
-    const stmt = this.get().prepare(sql);
+    const stmt = this.getDb().prepare(sql);
     stmt.run(...values);
   }
 
@@ -180,7 +163,7 @@ class DatabaseService {
     const sql = 'SELECT * FROM sync_jobs WHERE id = ?';
 
     try {
-      const row = this.get().prepare(sql).get(id) as SyncJob | undefined;
+      const row = this.getDb().prepare(sql).get(id) as SyncJob | undefined;
       // Nullish Coalescing Operator
       // return if row is undefined and null, return right side value
       return row ?? null;
@@ -204,7 +187,7 @@ class DatabaseService {
     `;
 
     try {
-      const row = this.get().prepare(sql).get(JobStatus.Completed) as
+      const row = this.getDb().prepare(sql).get(JobStatus.Completed) as
         | { last_sync_timestamp: string }
         | undefined;
       const lastSyncTimestamp = row?.last_sync_timestamp ?? null;
@@ -224,7 +207,7 @@ class DatabaseService {
       VALUES (?, ?, ?, ?)
     `;
 
-    const stmt = this.get().prepare(sql);
+    const stmt = this.getDb().prepare(sql);
     const info = stmt.run(item.sync_job_id, item.notion_page_id, item.wp_post_id, item.status);
     return Number(info.lastInsertRowid);
   }
@@ -249,7 +232,7 @@ class DatabaseService {
     const sql = `UPDATE sync_job_items SET ${fields.join(', ')} WHERE id = ?`;
     values.push(id);
 
-    const stmt = this.get().prepare(sql);
+    const stmt = this.getDb().prepare(sql);
     stmt.run(...values);
   }
 
@@ -262,7 +245,7 @@ class DatabaseService {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const stmt = this.get().prepare(sql);
+    const stmt = this.getDb().prepare(sql);
     const info = stmt.run(
       asset.sync_job_item_id,
       asset.notion_page_id,
@@ -302,7 +285,7 @@ class DatabaseService {
     const sql = `UPDATE image_assets SET ${fields.join(', ')} WHERE id = ?`;
     values.push(id);
 
-    const stmt = this.get().prepare(sql);
+    const stmt = this.getDb().prepare(sql);
     stmt.run(...values);
   }
 
@@ -310,7 +293,7 @@ class DatabaseService {
     const sql = 'SELECT * FROM image_assets WHERE sync_job_item_id = ?';
 
     try {
-      const rows = this.get().prepare(sql).all(syncJobItemId) as ImageAsset[];
+      const rows = this.getDb().prepare(sql).all(syncJobItemId) as ImageAsset[];
       return rows;
     } catch (error: unknown) {
       const err = asError(error);
@@ -326,7 +309,7 @@ class DatabaseService {
       VALUES (?, ?)
     `;
 
-    const stmt = this.get().prepare(sql);
+    const stmt = this.getDb().prepare(sql);
     const info = stmt.run(map.notion_page_id, map.wp_post_id);
     const id = Number(info.lastInsertRowid);
     logger.info(`Created page-post mapping: ${map.notion_page_id} -> ${map.wp_post_id}`);
@@ -337,7 +320,7 @@ class DatabaseService {
     const sql = 'SELECT * FROM page_post_map WHERE notion_page_id = ?';
 
     try {
-      const row = this.get().prepare(sql).get(notionPageId) as PagePostMap | undefined;
+      const row = this.getDb().prepare(sql).get(notionPageId) as PagePostMap | undefined;
       return row ?? null;
     } catch (error: unknown) {
       const err = asError(error);

@@ -17,15 +17,13 @@ async function main() {
   const startTime = Date.now();
   let result: ExecuteSyncJobResponse;
   try {
-    // Initialize database
-    db.initialize();
     // Execute manual sync
     result = await syncOrchestrator.executeSyncJob(JobType.Manual);
     // Close database
-    db.close();
+    db.closeDb();
   } catch (error: unknown) {
     logger.error('Manual sync failed', asError(error));
-    db.close();
+    db.closeDb();
     process.exit(1);
   }
 

@@ -14,10 +14,6 @@ async function main() {
   logger.info(`Sync schedule: ${config.syncSchedule}`);
 
   try {
-    // Initialize database
-    db.initialize();
-    logger.info('Database initialized successfully');
-
     // Schedule sync job
     cron.schedule(config.syncSchedule, async () => {
       logger.info('Scheduled sync job triggered');
@@ -57,14 +53,14 @@ async function main() {
     // 'SIGINT' is sent on Ctrl+C, 'SIGTERM' is sent by process managers
     process.on('SIGINT', () => {
       logger.info('Received SIGINT, shutting down gracefully');
-      db.close();
+      db.closeDb();
       process.exit(0);
     });
 
     // 'SIGTERM' is sent on termination signal, e.g., from Docker or Kubernetes
     process.on('SIGTERM', () => {
       logger.info('Received SIGTERM, shutting down gracefully');
-      db.close();
+      db.closeDb();
       process.exit(0);
     });
   } catch (error: unknown) {

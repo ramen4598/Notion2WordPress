@@ -1,6 +1,7 @@
 // Description: Orchestrates the synchronization process between Notion, ContentConverter and WordPress.
 
 import { db } from '../db/index.js';
+import { SyncJobInResult, ISyncJobResult, SyncJobResultFactory, SyncJobResultFactoryRequest } from './syncJobResult.js';
 import { notionService, NotionPage, ImageReference } from '../services/notionService.js';
 import { wpService } from '../services/wpService.js';
 import { telegramService } from '../services/telegramService.js';
@@ -43,15 +44,6 @@ type SyncJobItem = {
   uploadedMediaIds: number[];
 };
 
-/**
- * Response type for executing a sync job.
- * Returns the completed or failed SyncJob, or null if no pages to sync.
- */
-export type ExecuteSyncJobResponse =
-  | (SyncJob & {
-      status: Exclude<JobStatus, JobStatus.Running>; // No longer running
-    })
-  | null;
 
 class SyncOrchestrator {
   // executeSyncJob -> syncPages -> syncPage -> syncImages -> syncImage
@@ -64,13 +56,18 @@ class SyncOrchestrator {
    * @returns A promise that resolves to the result of the sync job execution.
    * @throws An error if the sync job fails, not individual page sync failures.
    */
-  async executeSyncJob(jobType: JobType): Promise<ExecuteSyncJobResponse> {
+  async executeSyncJob(jobType: JobType): Promise<ISyncJobResult> {
     logger.info(`Starting sync job: ${jobType}`);
 
     const pages: NotionPage[] = await this.queryPages();
 
-    // if no pages to sync, return null
-    if (pages.length === 0) return null;
+    // if no pages to sync, return SyncJobResultEmpty
+    if (pages.length <= 0) {
+      return SyncJobResultFactory.create({
+        isPerformed: false,
+        syncJob: null,
+      } as SyncJobResultFactoryRequest) as ISyncJobResult;
+    }
 
     const syncJob: SyncJob = await this.createSyncJob(jobType);
     try {
@@ -92,7 +89,10 @@ class SyncOrchestrator {
         pagesFailed: syncJob.pagesFailed,
       });
 
-      return syncJob as ExecuteSyncJobResponse;
+      return SyncJobResultFactory.create({
+        isPerformed: true,
+        syncJob: syncJob as SyncJobInResult,
+      } as SyncJobResultFactoryRequest) as ISyncJobResult;
     } catch (error: unknown) {
       // Handle sync job failure, not individual sync job item failures.
       const err = asError(error);

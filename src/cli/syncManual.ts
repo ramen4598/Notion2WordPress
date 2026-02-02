@@ -6,53 +6,45 @@
 
 import { logger } from '../lib/logger.js';
 import { db } from '../db/index.js';
-import { ExecuteSyncJobResponse, syncOrchestrator } from '../orchestrator/syncOrchestrator.js';
+import { syncOrchestrator } from '../orchestrator/syncOrchestrator.js';
+import { ISyncJobResult } from '../orchestrator/syncJobResult.js';
 import { JobType } from '../enums/db.enums.js';
-import { JobStatus } from '../enums/db.enums.js';
 import { asError } from '../lib/utils.js';
+import { StopWatch } from '../lib/stopWatch.js';
 
 async function main() {
-  logger.info('Starting manual sync job');
+  await sync();
+}
 
-  const startTime = Date.now();
-  let result: ExecuteSyncJobResponse;
+async function sync() {
+  const stopWatch = new StopWatch();
+  const result = await start(stopWatch);
+  end(result, stopWatch);
+}
+
+async function start(stopWatch: StopWatch): Promise<ISyncJobResult> {
+  stopWatch.start();
+  logger.info('Starting manual sync job');
+  return await executeSyncJob();
+}
+
+function end(result: ISyncJobResult, stopWatch: StopWatch) {
+  stopWatch.stop();
+  result.logResult();
+  process.exit(result.getExitCode());
+}
+
+async function executeSyncJob(): Promise<ISyncJobResult> {
+  let result: ISyncJobResult;
   try {
-    // Execute manual sync
     result = await syncOrchestrator.executeSyncJob(JobType.Manual);
-    // Close database
-    db.closeDb();
+    db.closeDb(); // TODO: finally 블록으로 옮기기
   } catch (error: unknown) {
     logger.error('Manual sync failed', asError(error));
-    db.closeDb();
-    process.exit(1);
+    db.closeDb(); // TODO: finally 블록으로 옮기기
+    process.exit(1); // TODO: 커스텀 에러 코드를 정의하여 사용하여 예외처리
   }
-
-  if (!result) {
-    logger.info('No pages to sync for this manual job');
-    process.exit(0);
-  }
-
-  // Log results
-  logger.info('Manual sync completed', {
-    jobId: result.jobId,
-    JobType: result.jobType,
-    status: result.status,
-    pagesProcessed: result.pagesProcessed,
-    pagesSucceeded: result.pagesSucceeded,
-    pagesFailed: result.pagesFailed,
-  });
-
-  if (result.errors.length > 0) {
-    logger.error('Sync completed with errors:', {
-      errorCount: result.errors.length,
-      errors: result.errors,
-    });
-  }
-
-  // Exit with appropriate code
-  const duration = Date.now() - startTime;
-  logger.info(`Manual sync job completed in ${duration}ms`);
-  process.exit(result.status === JobStatus.Completed ? 0 : 1);
+  return result;
 }
 
 main();

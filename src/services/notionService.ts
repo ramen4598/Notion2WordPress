@@ -43,7 +43,7 @@ interface pageQueryResponse {
   results: unknown[];
   has_more: boolean;
   next_cursor: string | null;
-};
+}
 
 export interface getPageHTMLResponse {
   html: string;
@@ -268,9 +268,11 @@ class NotionService {
     if (!props) return NotionPageStatus.Writing;
     const statusProp = props[config.notionPageStatusProperty] as unknown;
     if (!isRecord(statusProp)) return NotionPageStatus.Writing;
-    const select = statusProp['select'];
-    if (!isRecord(select)) return NotionPageStatus.Writing;
-    const name = select['name'];
+
+    // Support both legacy "select" and Notion "status" property shapes.
+    const candidate = (statusProp['status'] ?? statusProp['select']) as unknown;
+    if (!isRecord(candidate)) return NotionPageStatus.Writing;
+    const name = candidate['name'];
     if (typeof name !== 'string') return NotionPageStatus.Writing;
     if (Object.values(NotionPageStatus).includes(name as NotionPageStatus)) {
       return name as NotionPageStatus;

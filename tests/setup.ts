@@ -1,23 +1,29 @@
-// Description: Test setup and global configuration for vitest
+// Description: Global Vitest setup
 
-import { beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import { beforeEach, vi } from 'vitest';
 
-// Global setup before all tests
-beforeAll(() => {
-  // : Initialize test environment
-});
+function applyBaseEnv(): void {
+  vi.stubEnv('NOTION_API_TOKEN', 'test-notion-token');
+  vi.stubEnv('NOTION_DATASOURCE_ID', 'test-datasource');
+  vi.stubEnv('NOTION_PAGE_PROPERTY_NAME', 'status');
+  vi.stubEnv('WP_API_URL', 'https://example.com/wp-json');
+  vi.stubEnv('WP_USERNAME', 'test-user');
+  vi.stubEnv('WP_APP_PASSWORD', 'test-pass');
+  vi.stubEnv('TELEGRAM_ENABLED', 'false');
+  vi.stubEnv('LOG_LEVEL', 'silent');
+  vi.stubEnv('MAX_CONCURRENT_IMAGE_DOWNLOADS', '2');
+  vi.stubEnv('IMAGE_DOWNLOAD_TIMEOUT_MS', '50');
+  vi.stubEnv('MAX_RETRY_ATTEMPTS', '3');
+  vi.stubEnv('RETRY_INITIAL_DELAY_MS', '1');
+  vi.stubEnv('RETRY_MAX_DELAY_MS', '5');
+  vi.stubEnv('RETRY_BACKOFF_MULTIPLIER', '1');
+}
 
-// Global teardown after all tests
-afterAll(() => {
-  // : Cleanup test environment
-});
+// Apply once before modules import config.
+applyBaseEnv();
 
-// Setup before each test
+// Reset to a known baseline per test.
 beforeEach(() => {
-  // : Reset test state
-});
-
-// Cleanup after each test
-afterEach(() => {
-  // : Cleanup after each test
+  vi.unstubAllEnvs();
+  applyBaseEnv();
 });

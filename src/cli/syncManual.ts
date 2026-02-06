@@ -55,4 +55,4 @@ async function main() {
   process.exit(result.status === JobStatus.Completed ? 0 : 1);
 }
 
-main();
+await main();

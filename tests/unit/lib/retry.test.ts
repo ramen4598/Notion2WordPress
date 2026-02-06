@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { retryWithBackoff } from '../../../src/lib/retry.js';
 
 describe('retryWithBackoff', () => {
@@ -36,5 +36,32 @@ describe('retryWithBackoff', () => {
       .rejects.toThrow('fail');
 
     expect(calls).toBe(2);
+  });
+
+  it('calls onRetry with error and attempt number', async () => {
+    vi.useFakeTimers();
+
+    let calls = 0;
+    const onRetry = vi.fn();
+
+    const promise = retryWithBackoff(async () => {
+      calls++;
+      if (calls < 3) {
+        throw new Error(`temporary-${calls}`);
+      }
+      return 'ok';
+    }, { maxAttempts: 5, initialDelayMs: 10, maxDelayMs: 10, backoffMultiplier: 1, onRetry });
+
+    await vi.runAllTimersAsync();
+    await expect(promise).resolves.toBe('ok');
+
+    expect(onRetry).toHaveBeenCalledTimes(2);
+    expect(onRetry.mock.calls[0]?.[0]).toBeInstanceOf(Error);
+    expect(onRetry.mock.calls[0]?.[0]?.message).toBe('temporary-1');
+    expect(onRetry.mock.calls[0]?.[1]).toBe(1);
+    expect(onRetry.mock.calls[1]?.[0]?.message).toBe('temporary-2');
+    expect(onRetry.mock.calls[1]?.[1]).toBe(2);
+
+    vi.useRealTimers();
   });
 });

@@ -4,12 +4,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    exclude: [
-      'node_modules/**',
-      'dist/**',
-      'tmp/**',
-      'specs/**',
-    ],
+    setupFiles: ['tests/setup.ts'],
+    exclude: ['node_modules/**', 'dist/**', 'tmp/**', 'specs/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -26,8 +22,8 @@ export default defineConfig({
         lines: 80,
         functions: 80,
         branches: 80,
-        statements: 80
-      }
-    }
-  }
+        statements: 80,
+      },
+    },
+  },
 });

@@ -47,4 +47,4 @@ async function executeSyncJob(): Promise<ISyncJobResult> {
   return result;
 }
 
-main();
+await main();

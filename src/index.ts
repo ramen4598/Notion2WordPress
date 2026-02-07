@@ -3,10 +3,10 @@
 import cron from 'node-cron';
 import { config } from './config/index.js';
 import { logger } from './lib/logger.js';
-import { db } from './db/index.js';
-import { syncOrchestrator } from './orchestrator/syncOrchestrator.js';
-import { ISyncJobResult } from './orchestrator/syncJobResult.js';
-import { JobType } from './enums/db.enums.js';
+import { db } from './domain/db/impl/sqlite3.js';
+import { syncOrchestrator } from './domain/orchestrator/impl/syncOrchestrator.js';
+import { ISyncJobResult } from './domain/orchestrator/syncJobResult.js';
+import { JobType } from './domain/db/enum/db.enums.js';
 import { asError } from './lib/utils.js';
 
 async function main() {

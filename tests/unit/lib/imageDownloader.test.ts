@@ -2,7 +2,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
-import { imageDownloader } from '../../../src/lib/imageDownloader.js';
+import { imageDownloader } from '../../../src/domain/image/impl/imageDownloader.js';
 
 vi.mock('axios');
 vi.mock('../../../src/lib/logger.js', () => ({

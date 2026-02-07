@@ -1,12 +1,12 @@
 // Description: Service to send Telegram notifications about sync job status
 
 import { Telegraf } from 'telegraf';
-import { config } from '../config/index.js';
-import { logger } from '../lib/logger.js';
-import { retryWithBackoff } from '../lib/retry.js';
-import { SyncJob } from '../orchestrator/syncOrchestrator.js';
-import { JobStatus } from '../enums/db.enums.js';
-import { asError } from '../lib/utils.js';
+import { config } from '../../../config/index.js';
+import { logger } from '../../../lib/logger.js';
+import { retryWithBackoff } from '../../../lib/retry.js';
+import { SyncJob } from '../../orchestrator/impl/syncOrchestrator.js';
+import { JobStatus } from '../../db/enum/db.enums.js';
+import { asError } from '../../../lib/utils.js';
 
 
 export type Message = SyncJob | string;

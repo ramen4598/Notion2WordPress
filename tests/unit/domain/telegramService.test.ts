@@ -27,11 +27,11 @@ vi.mock('../../../src/lib/logger.js', () => ({
   },
 }));
 
-import { JobStatus, JobType } from '../../../src/enums/db.enums.js';
+import { JobStatus, JobType } from '../../../src/domain/db/enum/db.enums.js';
 
 async function loadTelegramService() {
   vi.resetModules();
-  const mod = await import('../../../src/services/telegramService.js');
+  const mod = await import('../../../src/domain/notification/impl/telegramService.js');
   return mod.telegramService as typeof mod.telegramService;
 }
 

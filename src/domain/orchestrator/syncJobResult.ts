@@ -1,6 +1,6 @@
-import { JobStatus } from '../enums/db.enums.js';
-import { SyncJob } from './syncOrchestrator.js';
-import { logger } from '../lib/logger.js';
+import { JobStatus } from '../db/enum/db.enums.js';
+import { SyncJob } from './impl/syncOrchestrator.js';
+import { logger } from '../../lib/logger.js';
 
 /**
  * Type representing a sync job with a non-running status.

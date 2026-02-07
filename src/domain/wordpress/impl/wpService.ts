@@ -2,11 +2,11 @@
 
 import axios, { type AxiosInstance, isAxiosError } from 'axios';
 import FormData from 'form-data';
-import { config } from '../config/index.js';
-import { logger } from '../lib/logger.js';
-import { retryWithBackoff } from '../lib/retry.js';
-import { WpPostStatus } from '../enums/wp.enums.js';
-import { asError } from '../lib/utils.js';
+import { config } from '../../../config/index.js';
+import { logger } from '../../../lib/logger.js';
+import { retryWithBackoff } from '../../../lib/retry.js';
+import { WpPostStatus } from '../enum/wp.enums.js';
+import { asError } from '../../../lib/utils.js';
 
 export interface CreatePostOptions {
   title: string;

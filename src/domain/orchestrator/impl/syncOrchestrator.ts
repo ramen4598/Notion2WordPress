@@ -1,17 +1,17 @@
 // Description: Orchestrates the synchronization process between Notion, ContentConverter and WordPress.
 
-import { db } from '../db/index.js';
-import { SyncJobInResult, ISyncJobResult, SyncJobResultFactory, SyncJobResultFactoryRequest } from './syncJobResult.js';
-import { notionService, NotionPage, ImageReference } from '../services/notionService.js';
-import { wpService } from '../services/wpService.js';
-import { telegramService } from '../services/telegramService.js';
-import { imageDownloader } from '../lib/imageDownloader.js';
-import { logger } from '../lib/logger.js';
-import { JobType, JobStatus, JobItemStatus, ImageAssetStatus } from '../enums/db.enums.js';
-import { NotionPageStatus as NPStatus } from '../enums/notion.enums.js';
-import { WpPostStatus } from '../enums/wp.enums.js';
-import { config } from '../config/index.js';
-import { asError } from '../lib/utils.js';
+import { db } from '../../db/impl/sqlite3.js';
+import { SyncJobInResult, ISyncJobResult, SyncJobResultFactory, SyncJobResultFactoryRequest } from '../syncJobResult.js';
+import { notionService, NotionPage, ImageReference } from '../../notion/impl/notionService.js';
+import { wpService } from '../../wordpress/impl/wpService.js';
+import { telegramService } from '../../notification/impl/telegramService.js';
+import { imageDownloader } from '../../image/impl/imageDownloader.js';
+import { logger } from '../../../lib/logger.js';
+import { JobType, JobStatus, JobItemStatus, ImageAssetStatus } from '../../db/enum/db.enums.js';
+import { NotionPageStatus as NPStatus } from '../../notion/enum/notion.enums.js';
+import { WpPostStatus } from '../../wordpress/enum/wp.enums.js';
+import { config } from '../../../config/index.js';
+import { asError } from '../../../lib/utils.js';
 
 type SyncError = {
   notionPageId: string;

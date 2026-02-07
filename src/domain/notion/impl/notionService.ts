@@ -2,15 +2,15 @@
 // Reference: https://developers.notion.com/reference/
 
 import { Client } from '@notionhq/client';
-import { config } from '../config/index.js';
-import { logger } from '../lib/logger.js';
-import { retryWithBackoff } from '../lib/retry.js';
-import { isRecord } from '../lib/utils.js';
+import { config } from '../../../config/index.js';
+import { logger } from '../../../lib/logger.js';
+import { retryWithBackoff } from '../../../lib/retry.js';
+import { isRecord } from '../../../lib/utils.js';
 import { NotionToMarkdown } from 'notion-to-md';
 import { marked } from 'marked';
 import { MdBlock } from 'notion-to-md/build/types/index.js';
-import { NotionPageStatus } from '../enums/notion.enums.js';
-import { asError } from '../lib/utils.js';
+import { NotionPageStatus } from '../enum/notion.enums.js';
+import { asError } from '../../../lib/utils.js';
 
 export interface NotionPage {
   id: string;

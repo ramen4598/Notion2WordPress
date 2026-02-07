@@ -2,10 +2,10 @@
 
 import axios from 'axios';
 import crypto from 'crypto';
-import { config } from '../config/index.js';
-import { logger } from '../lib/logger.js';
-import { retryWithBackoff } from '../lib/retry.js';
-import { asError } from '../lib/utils.js';
+import { config } from '../../../config/index.js';
+import { logger } from '../../../lib/logger.js';
+import { retryWithBackoff } from '../../..//lib/retry.js';
+import { asError } from '../../../lib/utils.js';
 
 export interface DownloadImageOptions {
   url: string;

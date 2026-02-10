@@ -4,7 +4,7 @@ node_modules/
 # Build artifacts
 dist/
 build/
-lib/
+/lib/
 
 # Coverage
 coverage/
@@ -24,3 +24,6 @@ data/
 # Generated files
 *.min.js
 *.bundle.js
+
+tmp/
+*.md

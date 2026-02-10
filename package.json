@@ -1,6 +1,6 @@
 {
   "name": "notion2wordpress",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "description": "Automated synchronization of Notion pages to WordPress as draft posts",
   "main": "dist/index.js",
   "type": "module",
@@ -16,7 +16,7 @@
     "test": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/**/*.ts",
-    "format": "prettier --write src/**/*.ts",
+    "format": "prettier --write src/**/*.ts tests/**/*.ts",
     "typecheck": "tsc --noEmit",
     "logs:sync": "sqlite3 ./data/sync.db \"SELECT * FROM sync_jobs ORDER BY started_at DESC LIMIT 5;\"",
     "logs:failed": "sqlite3 ./data/sync.db \"SELECT * FROM sync_job_items WHERE status='failed';\""
@@ -30,10 +30,10 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@notionhq/client": "5.7.0",
-    "axios": "1.13.2",
+    "@notionhq/client": "5.9.0",
+    "axios": "1.13.5",
     "better-sqlite3": "12.6.2",
-    "dotenv": "17.2.3",
+    "dotenv": "17.2.4",
     "form-data": "4.0.5",
     "marked": "17.0.1",
     "node-cron": "4.2.1",
@@ -42,16 +42,16 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.13",
-    "@types/node": "25.0.9",
+    "@types/node": "25.2.2",
     "@types/node-cron": "3.0.11",
-    "@typescript-eslint/eslint-plugin": "8.53.0",
-    "@typescript-eslint/parser": "8.53.0",
-    "@vitest/coverage-v8": "4.0.17",
+    "@typescript-eslint/eslint-plugin": "8.55.0",
+    "@typescript-eslint/parser": "8.55.0",
+    "@vitest/coverage-v8": "4.0.18",
     "eslint": "9.39.2",
     "eslint-config-prettier": "10.1.8",
-    "prettier": "3.8.0",
+    "prettier": "3.8.1",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
-    "vitest": "4.0.17"
+    "vitest": "4.0.18"
   }
 }

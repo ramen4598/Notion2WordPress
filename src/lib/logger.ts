@@ -1,6 +1,6 @@
 // Description: A simple logging utility with different log levels and structured output.
 
-import { config } from '../config/index.js';
+import { config } from '../config/config.js';
 
 export enum LogLevel {
   DEBUG = 0,

@@ -22,10 +22,10 @@ export class StopWatch {
    * @returns Elapsed time in milliseconds
    * @throws StopWatchError if the stopwatch was not started
    */
-  public stop(): number {
+  public stop(): void {
     if (!this.isStarted) throw new StopWatchError('StopWatch has not been started.');
     const duration = Date.now() - this.startTime;
-    return duration;
+    console.info(`StopWatch : Operation completed in ${duration} ms`);
   }
 }
 

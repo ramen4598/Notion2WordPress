@@ -6,8 +6,8 @@
 
 import { logger } from '../lib/logger.js';
 import { db } from '../domain/db/impl/sqlite3.js';
-import { syncOrchestrator } from '../domain/orchestrator/impl/syncOrchestrator.js';
-import { ISyncJobResult } from '../domain/orchestrator/syncJobResult.js';
+import { orchestrator } from '../domain/orchestrator/impl/orchestratorImpl.js';
+import { IJobResult } from '../domain/job/interface/jobResult.js';
 import { JobType } from '../domain/db/enum/db.enums.js';
 import { asError } from '../lib/utils.js';
 import { StopWatch } from '../lib/stopWatch.js';
@@ -18,33 +18,27 @@ async function main() {
 
 async function sync() {
   const stopWatch = new StopWatch();
-  const result = await start(stopWatch);
-  end(result, stopWatch);
-}
-
-async function start(stopWatch: StopWatch): Promise<ISyncJobResult> {
   stopWatch.start();
-  logger.info('Starting manual sync job');
-  return await executeSyncJob();
-}
-
-function end(result: ISyncJobResult, stopWatch: StopWatch) {
+  const result = await start();
+  end(result);
   stopWatch.stop();
-  result.logResult();
-  process.exit(result.getExitCode());
 }
 
-async function executeSyncJob(): Promise<ISyncJobResult> {
-  let result: ISyncJobResult;
+async function start(): Promise<IJobResult> {
+  logger.info('Starting manual sync job');
   try {
-    result = await syncOrchestrator.executeSyncJob(JobType.Manual);
-    db.closeDb(); // TODO: finally 블록으로 옮기기
+    return await orchestrator.execute(JobType.Manual);
   } catch (error: unknown) {
     logger.error('Manual sync failed', asError(error));
-    db.closeDb(); // TODO: finally 블록으로 옮기기
-    process.exit(1); // TODO: 커스텀 에러 코드를 정의하여 사용하여 예외처리
+    db.closeDb();
+    process.exit(1);
   }
-  return result;
+}
+
+function end(result: IJobResult) {
+  result.logResult();
+  db.closeDb();
+  process.exitCode = result.getExitCode();
 }
 
 await main();

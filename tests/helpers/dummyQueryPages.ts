@@ -1,12 +1,12 @@
 // 0 page response
 export const zeroPageResponse = {
-  "object": "list",
-  "results": [],
-  "next_cursor": null,
-  "has_more": false,
-  "type": "page_or_data_source",
-  "page_or_data_source": {},
-  "request_id": "57255372-fe02-4686-8f94-692e2f2647ff"
+  object: 'list',
+  results: [],
+  next_cursor: null,
+  has_more: false,
+  type: 'page_or_data_source',
+  page_or_data_source: {},
+  request_id: '57255372-fe02-4686-8f94-692e2f2647ff',
 } as const;
 
 // 1 page response without pagination
@@ -86,7 +86,7 @@ export const onePageResponse = {
   type: 'page_or_data_source',
   page_or_data_source: {},
   request_id: '0f6d5901-b3b9-4564-8b78-4f2dadab4a05',
-}; 
+};
 
 // 2 pages response with pagination
 export const twoPagesResponseWithPagination_1 = {
@@ -165,7 +165,7 @@ export const twoPagesResponseWithPagination_1 = {
   type: 'page_or_data_source',
   page_or_data_source: {},
   request_id: '269b8738-81ee-4d2f-a774-0e1474b2d0b2',
-} as const; 
+} as const;
 
 export const twoPagesResponseWithPagination_2 = {
   object: 'list',

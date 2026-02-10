@@ -9,7 +9,7 @@ import { JobStatus, JobItemStatus } from '../../db/enum/db.enums.js';
 import { logger } from '../../../lib/logger.js';
 import { asError } from '../../../lib/utils.js';
 import { db } from '../../db/impl/sqlite3.js';
-import { wordPress } from '../../wordPress_tmp/impl/wordPressImpl.js';
+import { wordPress } from '../../wordPress/impl/wordPressImpl.js';
 import { notion } from '../../notion/impl/notionImpl.js';
 import { imageProcessor } from '../../image/impl/imageProcessorImpl.js';
 

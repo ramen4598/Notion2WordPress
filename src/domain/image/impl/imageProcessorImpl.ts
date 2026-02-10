@@ -1,12 +1,12 @@
 import type { IImageProcessor, Placeholder2WpUrlMap, Placeholder2WpUrlRecord } from '../interface/imageProcessor.js';
 import type { ImageReference } from '../../notion/interface/notion.js';
-import type { WpMedia } from '../../wordPress_tmp/interface/wordPress.js';
+import type { WpMedia } from '../../wordPress/interface/wordPress.js';
 import type { Page } from '../../page/interface/pageProcessor.js';
 import type { DownloadImageResponse } from '../interface/imageDownloader.js';
 import { ImageProcessException } from '../error/image.error.js';
 import { ImageAssetStatus } from '../../db/enum/db.enums.js';
 import { imageDownloader } from './notionImgDownloader.js';
-import { wordPress } from '../../wordPress_tmp/impl/wordPressImpl.js';
+import { wordPress } from '../../wordPress/impl/wordPressImpl.js';
 import { db } from '../../db/impl/sqlite3.js';
 import { logger } from '../../../lib/logger.js';
 import { config } from '../../../config/config.js';

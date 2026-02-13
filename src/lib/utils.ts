@@ -16,6 +16,6 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
  * @param e - The unknown value to convert
  * @returns An Error object
  */
-export function asError (e: unknown): Error {
+export function asError(e: unknown): Error {
   return e instanceof Error ? e : new Error(String(e));
 }

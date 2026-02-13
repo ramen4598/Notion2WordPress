@@ -1,7 +1,7 @@
 // Description: Utility functions for retrying operations with exponential backoff
 
 import { logger } from './logger.js';
-import { config } from '../config/index.js';
+import { config } from '../config/config.js';
 import { asError } from './utils.js';
 
 export interface RetryOptions {
@@ -19,7 +19,6 @@ export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {}
 ): Promise<T> {
-
   const {
     maxAttempts = config.maxRetryAttempts,
     initialDelayMs = config.retryInitialDelayMs,

@@ -2,37 +2,35 @@
 
 ## Failed sync with rollback
 
-![sequence-sync-failure](../img/sequence-sync-failure.png)
-
 ```mermaid
 sequenceDiagram
     autonumber
     participant ENTRY as CLI Client or Cron Job
-    participant Orchestrator as SyncOrchestrator
+    participant Orchestrator as Orchestrator
     participant DB as Database
-    participant Notion as NotionService
+    participant Notion as Notion
     participant Downloader as ImageDownloader
-    participant WP as WordPressService
-    participant Telegram as TelegramService
+    participant WP as WordPress
+    participant Telegram as Telegram
 
-    ENTRY->>Orchestrator: executeSyncJob(jobType)
-    Orchestrator->>DB: createSyncJob(jobType)
+    ENTRY->>Orchestrator: execute(jobType)
+    Orchestrator->>DB: createJob(jobType)
     Orchestrator->>DB: getLastSyncTimestamp()
-    Orchestrator->>Notion: queryPages(lastSync, status=Adding)
+    Orchestrator->>Notion: queryPages(lastSync, status=adding)
     Notion-->>Orchestrator: pages to sync
 
     loop Each Notion page
-        Orchestrator->>DB: createSyncJobItem(page)
+        Orchestrator->>DB: createPage(job_id, notion_page_id, status=pending)
         Orchestrator->>Notion: getPageHTML(page.id)
         Notion->>Notion: Extract images and replace urls with placeholders
         Notion-->>Orchestrator: html, images
         loop For each image
-		        Orchestrator->>DB: createImageAsset(image, status=Pending)
+		        Orchestrator->>DB: createImageAsset(page_id, notion_page_id, notion_block_id, notion_url, status: pending)
             Orchestrator->>Downloader: download(image.url)
             Downloader-->>Orchestrator: buffer, metadata
             Orchestrator->>WP: uploadMedia(buffer, filename)
             WP--x Orchestrator: upload fails
-            Orchestrator->>DB: updateImageAsset(status=Failed, error)
+            Orchestrator->>DB: updateImageAsset(status=failed, error)
             Orchestrator-->>Orchestrator: throw Error(image failure)
         end
         Orchestrator->>Orchestrator: catch error and trigger rollback
@@ -42,11 +40,11 @@ sequenceDiagram
         opt Draft post created earlier
             Orchestrator->>WP: deletePost(wpPostId)
         end
-        Orchestrator->>Notion: updatePageStatus(page.id, Error)
-        Orchestrator->>DB: updateSyncJobItem(status=Failed, error)
+        Orchestrator->>Notion: updatePageStatus(page.id, error)
+        Orchestrator->>DB: updatePage(status=failed, error)
     end
 
-    Orchestrator->>DB: updateSyncJob(status=Failed, metrics, errorMessage)
+    Orchestrator->>DB: updateJob(status=failed, metrics, errorMessage)
     Orchestrator->>Telegram: sendSyncNotification(summary with errors)
     Orchestrator-->>ENTRY: propagate error
 ```

@@ -89,8 +89,4 @@ describe('Utils', () => {
       });
     });
   });
-
-  describe('asError', () => {
-    // : Add test cases
-  });
 });

@@ -1,6 +1,6 @@
 # Notion to WordPress Sync Specification
 
-**Last Updated**: 2025-11-13
+**Last Updated**: 2026-02-13
 
 ## Overview
 
@@ -10,7 +10,7 @@ Automated synchronization system that publishes Notion pages to WordPress as dra
 
 1. User sets Notion page `status` to `adding`
 2. System syncs page to WordPress as draft (scheduled or manual trigger)
-3. System updates Notion `status` to `complete`
+3. System updates Notion `status` to `done`
 4. Admin reviews and publishes draft manually
 5. Telegram notification sent on success/failure
 
@@ -18,7 +18,7 @@ Automated synchronization system that publishes Notion pages to WordPress as dra
 
 - `writing`: Ignored by sync
 - `adding`: Triggers sync to WordPress draft
-- `complete`: Successfully synced
+- `done`: Successfully synced
 - `error`: Sync failed
 
 ## Key Features
@@ -46,7 +46,7 @@ Automated synchronization system that publishes Notion pages to WordPress as dra
 ## Technical Stack
 
 - **Runtime**: Node.js 20.x LTS, TypeScript 5.9.3
-- **APIs**: @notionhq/client, @wordpress/api-fetch, Telegraf
+- **APIs**: @notionhq/client, WordPress REST API (axios), Telegraf
 - **Conversion**: notion-to-md + marked (Notion → Markdown → HTML)
 - **Scheduler**: node-cron
 - **Database**: SQLite (better-sqlite3) for page-post mapping
@@ -68,7 +68,7 @@ All credentials managed via environment variables:
 ## Limitations (MVP)
 
 - No update sync: only new pages processed
-- No idempotency: duplicate uploads allowed if status changed to `adding` multiple times
+- No duplicate image check: There is no function to detect duplicate images or prevent uploads
 - No auto-publish: all posts require manual admin approval
 - No Notion deletion sync: WordPress posts retained
 - No category/tag sync: WordPress defaults used

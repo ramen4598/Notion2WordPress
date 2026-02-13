@@ -1,7 +1,7 @@
 # Quickstart Guide: Notion to WordPress Sync for Developers
 
-**Date**: 2025-11-23  
-**Version**: 1.1
+**Date**: 2026-02-13  
+**Version**: 1.3.0
 
 ## Overview
 
@@ -58,19 +58,19 @@ npm install
 ```
 
 Installed versions:
-- `@notionhq/client`: 5.4.0
-- `axios`: 1.13.2
-- `better-sqlite3`: 12.4.1
-- `dotenv`: 17.2.3
-- `form-data`: 4.0.4
-- `marked`: 17.0.0
+- `@notionhq/client`: 5.9.0
+- `axios`: 1.13.5
+- `better-sqlite3`: 12.6.2
+- `dotenv`: 17.2.4
+- `form-data`: 4.0.5
+- `marked`: 17.0.1
 - `node-cron`: 4.2.1
 - `notion-to-md`: 3.1.9
 - `telegraf`: 4.16.3
 - `typescript`: 5.9.3
-- `vitest`: 4.0.8
-- `eslint`: 9.38.1
-- `prettier`: 3.6.2
+- `vitest`: 4.0.18
+- `eslint`: 9.39.2
+- `prettier`: 3.8.1
 <br><br>
 ### 3. Configure Environment Variables
 
@@ -90,7 +90,7 @@ Edit `.env` with your credentials:
 | `WP_API_URL` | ✅ | - | WordPress REST API base URL (HTTPS for production) |
 | `WP_USERNAME` | ✅ | - | WordPress username (must have Author/Editor role) |
 | `WP_APP_PASSWORD` | ✅ | - | WordPress Application Password |
-| `TELEGRAM_ENABLED` | ❌ | `true` | Enable/disable Telegram notifications |
+| `TELEGRAM_ENABLED` | ❌ | `false` | Enable/disable Telegram notifications |
 | `TELEGRAM_BOT_TOKEN` | ✅* | - | Telegram bot token from @BotFather |
 | `TELEGRAM_CHAT_ID` | ✅* | - | Telegram chat/channel ID for notifications |
 | `SYNC_SCHEDULE` | ❌ | `*/5 * * * *` | Cron schedule expression (every 5 min) |
@@ -194,13 +194,9 @@ SYNC_SCHEDULE="0 9 * * 1"
 <br><br>
 ## Database Setup
 
-The SQLite database is auto-created on first run. To manually initialize:
+The SQLite database is auto-created on first run.
 
-```bash
-npm run db:init
-```
-
-This creates `./data/sync.db` with the schema defined in `config/schema.sql`.
+It creates `./data/sync.db` with the schema defined in `config/schema.sql`.
 
 ---
 <br><br>
@@ -251,13 +247,13 @@ docker run -d \
 **Using Docker Compose** (recommended):
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 View logs:
 
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ---
@@ -276,19 +272,19 @@ docker-compose logs -f
 
 ### Checking Sync Status
 
-**View recent sync jobs**:
+**View recent jobs**:
 ```bash
 npm run logs:sync
 ```
 
 **Query database**:
 ```bash
-sqlite3 ./data/sync.db "SELECT * FROM sync_jobs ORDER BY started_at DESC LIMIT 5;"
+sqlite3 ./data/sync.db "SELECT * FROM jobs ORDER BY started_at DESC LIMIT 5;"
 ```
 
 **View failed syncs**:
 ```bash
-sqlite3 ./data/sync.db "SELECT * FROM sync_job_items WHERE status='failed';"
+sqlite3 ./data/sync.db "SELECT * FROM pages WHERE status='failed';"
 ```
 
 ### Manual Trigger
@@ -358,7 +354,7 @@ docker exec notion2wp npm run sync:manual
 
 **Solution**:
 - Stop all running instances
-- Restart with single process: `docker-compose restart`
+- Restart with single process: `docker compose restart`
 
 ---
 
@@ -366,7 +362,7 @@ docker exec notion2wp npm run sync:manual
 
 ```bash
 # Docker
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ---
@@ -393,7 +389,7 @@ docker ps | grep notion2wp
 
 Check last sync time:
 ```bash
-sqlite3 ./data/sync.db "SELECT started_at, status FROM sync_jobs ORDER BY started_at DESC LIMIT 1;"
+sqlite3 ./data/sync.db "SELECT started_at, status FROM jobs ORDER BY started_at DESC LIMIT 1;"
 ```
 timezone: UTC
 
@@ -410,20 +406,20 @@ timezone: UTC
 
 ```bash
 # Stop service
-docker-compose stop
+ docker compose stop
 
 # Backup database
 cp ./data/sync.db ./data/sync.db.backup.$(date +%Y%m%d)
 
 # Restart service
-docker-compose start
+ docker compose start
 ```
 
 ### Clean Up Old Jobs
 
-Delete sync job records older than 30 days:
+Delete job records older than 30 days:
 ```bash
-sqlite3 ./data/sync.db "DELETE FROM sync_jobs WHERE started_at < datetime('now', '-30 days');"
+sqlite3 ./data/sync.db "DELETE FROM jobs WHERE started_at < datetime('now', '-30 days');"
 ```
 
 ---
@@ -443,7 +439,7 @@ A: Mapping remains in database. Future sync won't recreate (idempotency not in M
 A: No. This project depends on `notion-to-md` for conversion.
 
 **Q: How do I pause syncing temporarily?**  
-A: Stop the Docker container: `docker-compose stop`. Restart when ready.
+A: Stop the Docker container: `docker compose stop`. Restart when ready.
 
 ---
 <br><br>
@@ -460,4 +456,4 @@ A: Stop the Docker container: `docker-compose stop`. Restart when ready.
 ## Support
 
 - **Issues**: Report bugs via GitHub Issues
-- **Logs**: Check `docker-compose logs` for error details
+- **Logs**: Check `docker compose logs` for error details

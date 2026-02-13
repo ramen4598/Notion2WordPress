@@ -10,7 +10,7 @@ class JobProcessor implements IJobProcessor {
   createJob(jobType: JobType): Job {
     try {
       const job: Job = {
-        jobId: db.createSyncJob(jobType),
+        jobId: db.createJob(jobType),
         jobType: jobType,
         status: JobStatus.Running,
         pagesProcessed: 0,
@@ -18,22 +18,22 @@ class JobProcessor implements IJobProcessor {
         pagesFailed: 0,
         errors: [],
       };
-      logger.info(`Created sync job with ID ${job.jobId}`);
+      logger.info(`Created job with ID ${job.jobId}`);
       return job;
     } catch (error: unknown) {
-      throw new JobException('Failed to create sync job', error);
+      throw new JobException('Failed to create job', error);
     }
   }
 
   endJob(job: Job): void {
     job.status = job.pagesFailed === 0 ? JobStatus.Completed : JobStatus.Failed;
     try {
-      db.updateSyncJob(job.jobId, {
+      db.updateJob(job.jobId, {
         status: job.status,
         last_sync_timestamp: new Date().toISOString(),
         completed_at: new Date().toISOString(),
       });
-      logger.info(`Sync job ${job.jobId} ended`);
+      logger.info(`Job ${job.jobId} ended`);
     } catch (error: unknown) {
       throw new JobException(`Failed to end job with ID ${job.jobId}`, error);
     }
@@ -42,7 +42,7 @@ class JobProcessor implements IJobProcessor {
   failJob(job: Job, errMsg: string): void {
     job.status = JobStatus.Failed;
     try {
-      db.updateSyncJob(job.jobId, {
+      db.updateJob(job.jobId, {
         status: job.status,
         error_message: errMsg,
         completed_at: new Date().toISOString(),
@@ -50,7 +50,7 @@ class JobProcessor implements IJobProcessor {
     } catch (error: unknown) {
       throw new JobException(`Failed to mark job with ID ${job.jobId} as failed`, error);
     }
-    logger.info(`Sync job ${job.jobId} completed`, {
+    logger.info(`Job ${job.jobId} completed`, {
       pagesProcessed: job.pagesProcessed,
       pagesSucceeded: job.pagesSucceeded,
       pagesFailed: job.pagesFailed,

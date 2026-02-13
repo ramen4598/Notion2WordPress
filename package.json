@@ -18,8 +18,8 @@
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts tests/**/*.ts",
     "typecheck": "tsc --noEmit",
-    "logs:sync": "sqlite3 ./data/sync.db \"SELECT * FROM sync_jobs ORDER BY started_at DESC LIMIT 5;\"",
-    "logs:failed": "sqlite3 ./data/sync.db \"SELECT * FROM sync_job_items WHERE status='failed';\""
+    "logs:sync": "sqlite3 ./data/sync.db \"SELECT * FROM jobs ORDER BY started_at DESC LIMIT 5;\"",
+    "logs:failed": "sqlite3 ./data/sync.db \"SELECT * FROM pages WHERE status='failed';\""
   },
   "keywords": [
     "notion",

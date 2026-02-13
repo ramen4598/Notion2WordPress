@@ -16,7 +16,7 @@ class Telegram implements INotification {
   constructor() {
     this.enabled = config.telegramEnabled;
 
-    if(!this.enabled) {
+    if (!this.enabled) {
       this.bot = null;
       this.chatId = null;
       logger.debug('Telegram - notifications are disabled');
@@ -44,9 +44,9 @@ class Telegram implements INotification {
 
     let formedMsg: string = '';
     let append: string = '';
-    if (this.isSyncJob(msg)) {
-      formedMsg = this.formatSyncJobMessage(msg);
-      append += " for jobId: " + msg.jobId;
+    if (this.isJob(msg)) {
+      formedMsg = this.formatJobMessage(msg);
+      append += ' for jobId: ' + msg.jobId;
     } else {
       formedMsg = this.formatTextMessage(msg);
     }
@@ -56,20 +56,29 @@ class Telegram implements INotification {
     };
 
     try {
-      await retryWithBackoff(async () => await this.bot!.telegram.sendMessage(this.chatId!, formedMsg, {
-        parse_mode: 'Markdown',
-        link_preview_options: { is_disabled: true },
-      }), { onRetry: onRetryFn });
+      await retryWithBackoff(
+        async () =>
+          await this.bot!.telegram.sendMessage(this.chatId!, formedMsg, {
+            parse_mode: 'Markdown',
+            link_preview_options: { is_disabled: true },
+          }),
+        { onRetry: onRetryFn }
+      );
       logger.debug(`Telegram - Sent Telegram notification${append}`);
-    } catch (error : unknown) {
+    } catch (error: unknown) {
       logger.warn(`Failed to send Telegram notification${append}`, asError(error));
       // Don't throw - notification failures shouldn't block the sync
     }
   }
 
-  private isSyncJob(msg: Message): msg is Job {
-    return typeof msg === 'object' && msg !== null &&
-      'jobId' in msg && 'status' in msg && 'jobType' in msg;
+  private isJob(msg: Message): msg is Job {
+    return (
+      typeof msg === 'object' &&
+      msg !== null &&
+      'jobId' in msg &&
+      'status' in msg &&
+      'jobType' in msg
+    );
   }
 
   private formatTextMessage(text: string): string {
@@ -80,9 +89,8 @@ class Telegram implements INotification {
     return message;
   }
 
-  private formatSyncJobMessage(syncJob: Job): string {
-    const { jobId, jobType, status, pagesProcessed, pagesSucceeded, pagesFailed, errors } =
-      syncJob;
+  private formatJobMessage(job: Job): string {
+    const { jobId, jobType, status, pagesProcessed, pagesSucceeded, pagesFailed, errors } = job;
 
     const emoji = status === JobStatus.Completed ? '✅' : '❌';
     const statusText = status === JobStatus.Completed ? 'Completed' : 'Failed';
@@ -130,15 +138,15 @@ class Telegram implements INotification {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   }
-  
+
   private escapeTgMarkdown(s: string): string {
     return s
-      .replace(/\\/g, "\\\\")      // 백슬래시 먼저
-      .replace(/_/g, "\\_")
-      .replace(/\*/g, "\\*")
-      .replace(/`/g, "\\`")
-      .replace(/\[/g, "\\[")
-      .replace(/\]/g, "\\]");
+      .replace(/\\/g, '\\\\') // 백슬래시 먼저
+      .replace(/_/g, '\\_')
+      .replace(/\*/g, '\\*')
+      .replace(/`/g, '\\`')
+      .replace(/\[/g, '\\[')
+      .replace(/\]/g, '\\]');
   }
 
   /**

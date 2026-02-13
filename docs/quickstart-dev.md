@@ -276,19 +276,19 @@ docker-compose logs -f
 
 ### Checking Sync Status
 
-**View recent sync jobs**:
+**View recent jobs**:
 ```bash
 npm run logs:sync
 ```
 
 **Query database**:
 ```bash
-sqlite3 ./data/sync.db "SELECT * FROM sync_jobs ORDER BY started_at DESC LIMIT 5;"
+sqlite3 ./data/sync.db "SELECT * FROM jobs ORDER BY started_at DESC LIMIT 5;"
 ```
 
 **View failed syncs**:
 ```bash
-sqlite3 ./data/sync.db "SELECT * FROM sync_job_items WHERE status='failed';"
+sqlite3 ./data/sync.db "SELECT * FROM pages WHERE status='failed';"
 ```
 
 ### Manual Trigger
@@ -393,7 +393,7 @@ docker ps | grep notion2wp
 
 Check last sync time:
 ```bash
-sqlite3 ./data/sync.db "SELECT started_at, status FROM sync_jobs ORDER BY started_at DESC LIMIT 1;"
+sqlite3 ./data/sync.db "SELECT started_at, status FROM jobs ORDER BY started_at DESC LIMIT 1;"
 ```
 timezone: UTC
 
@@ -421,9 +421,9 @@ docker-compose start
 
 ### Clean Up Old Jobs
 
-Delete sync job records older than 30 days:
+Delete job records older than 30 days:
 ```bash
-sqlite3 ./data/sync.db "DELETE FROM sync_jobs WHERE started_at < datetime('now', '-30 days');"
+sqlite3 ./data/sync.db "DELETE FROM jobs WHERE started_at < datetime('now', '-30 days');"
 ```
 
 ---

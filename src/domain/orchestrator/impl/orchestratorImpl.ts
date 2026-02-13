@@ -11,9 +11,8 @@ import { asError } from '../../../lib/utils.js';
 import { OrchestratorException } from '../error/orchestrator.error.js';
 
 class Orchestrator implements IOrchestrator {
-
   async execute(jobType: JobType): Promise<IJobResult> {
-    logger.info(`Starting sync job: ${jobType}`);
+    logger.info(`Starting sync: ${jobType}`);
 
     const pages: NotionPage[] = await this.queryPages();
     if (pages.length <= 0) return this.getEmptyResult();
@@ -27,23 +26,23 @@ class Orchestrator implements IOrchestrator {
     try {
       return await pageProcessor.queryPages();
     } catch (error: unknown) {
-      const errMsg = 'Failed to query Notion pages for sync job: ' + asError(error).message;
+      const errMsg = 'Failed to query Notion pages for job: ' + asError(error).message;
       await telegram.send(errMsg);
-      throw new OrchestratorException('Failed to query pages for sync job', error);
+      throw new OrchestratorException('Failed to query pages for job', error);
     }
   }
 
   private getEmptyResult(): IJobResult {
     return jobProcessor.getJobResult({
       isPerformed: false,
-      syncJob: null,
+      job: null,
     } as JobResultRequest);
   }
-  
-  private getResult(job : Job): IJobResult {
+
+  private getResult(job: Job): IJobResult {
     return jobProcessor.getJobResult({
       isPerformed: true,
-      syncJob: job as JobInResult,
+      job: job as JobInResult,
     } as JobResultRequest);
   }
 
@@ -51,7 +50,7 @@ class Orchestrator implements IOrchestrator {
     try {
       return jobProcessor.createJob(jobType);
     } catch (error: unknown) {
-      throw new OrchestratorException('Failed to create sync job', error);
+      throw new OrchestratorException('Failed to create job', error);
     }
   }
 
@@ -61,7 +60,7 @@ class Orchestrator implements IOrchestrator {
       jobProcessor.endJob(job);
     } catch (error: unknown) {
       this.failJob(job, 'Error occurred during syncPages');
-      throw new OrchestratorException('Failed to sync pages for sync job', error);
+      throw new OrchestratorException('Failed to sync pages for job', error);
     } finally {
       await telegram.send(job);
     }
@@ -71,7 +70,7 @@ class Orchestrator implements IOrchestrator {
     try {
       jobProcessor.failJob(job, errorMessage);
     } catch (error: unknown) {
-      throw new OrchestratorException(`Failed to mark sync job with ID ${job.jobId} as failed`, error);
+      throw new OrchestratorException(`Failed to mark job with ID ${job.jobId} as failed`, error);
     }
   }
 }

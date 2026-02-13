@@ -58,7 +58,7 @@ describe('TelegramService', () => {
     expect(sendMessageMock).not.toHaveBeenCalled();
   });
 
-  it('formats SyncJob message', async () => {
+  it('formats job message', async () => {
     vi.stubEnv('TELEGRAM_ENABLED', 'true');
     vi.stubEnv('TELEGRAM_BOT_TOKEN', 'token');
     vi.stubEnv('TELEGRAM_CHAT_ID', 'chat');

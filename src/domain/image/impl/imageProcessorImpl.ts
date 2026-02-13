@@ -1,4 +1,8 @@
-import type { IImageProcessor, Placeholder2WpUrlMap, Placeholder2WpUrlRecord } from '../interface/imageProcessor.js';
+import type {
+  IImageProcessor,
+  Placeholder2WpUrlMap,
+  Placeholder2WpUrlRecord,
+} from '../interface/imageProcessor.js';
 import type { ImageReference } from '../../notion/interface/notion.js';
 import type { WpMedia } from '../../wordPress/interface/wordPress.js';
 import type { Page } from '../../page/interface/pageProcessor.js';
@@ -74,16 +78,16 @@ class ImageProcessor implements IImageProcessor {
     const assetId = this.createImageAsset(page, image);
 
     try {
-      const {
-        filename: ogfname,
-        buffer,
-        hash,
-        contentType,
-      } = await this.downloadImage(image);
+      const { filename: ogfname, buffer, hash, contentType } = await this.downloadImage(image);
       const extension = this.getExtensionFromContentType(contentType);
       const filename = `${ogfname}-${hash.substring(0, 16)}.${extension}`;
 
-      const media: WpMedia = await this.uploadImageToWordPress(buffer, filename, contentType, image.altText);
+      const media: WpMedia = await this.uploadImageToWordPress(
+        buffer,
+        filename,
+        contentType,
+        image.altText
+      );
       page.uploadedMediaIds.push(media.id);
       this.updateImageAssetAsUploaded(assetId, media);
 
@@ -100,7 +104,7 @@ class ImageProcessor implements IImageProcessor {
   private createImageAsset(page: Page, image: ImageReference): number {
     try {
       return db.createImageAsset({
-        sync_job_item_id: page.id,
+        page_id: page.id,
         notion_page_id: page.notionPageId,
         notion_block_id: image.blockId,
         notion_url: image.url,
@@ -121,7 +125,12 @@ class ImageProcessor implements IImageProcessor {
     }
   }
 
-  private async uploadImageToWordPress(buffer: Buffer, filename: string, contentType: string, altText: string | undefined): Promise<WpMedia> {
+  private async uploadImageToWordPress(
+    buffer: Buffer,
+    filename: string,
+    contentType: string,
+    altText: string | undefined
+  ): Promise<WpMedia> {
     try {
       return await wordPress.uploadMedia({
         buffer,
@@ -142,7 +151,10 @@ class ImageProcessor implements IImageProcessor {
         status: ImageAssetStatus.Uploaded,
       });
     } catch (error: unknown) {
-      throw new ImageProcessException(`Failed to update image asset as uploaded: ${assetId}`, error);
+      throw new ImageProcessException(
+        `Failed to update image asset as uploaded: ${assetId}`,
+        error
+      );
     }
   }
 

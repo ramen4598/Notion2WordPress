@@ -1,5 +1,5 @@
 /**
- * Utility class to measure and log the duration of a sync job
+ * Utility class to measure and log the duration of an operation. 
  */
 export class StopWatch {
   private isStarted: boolean = false;

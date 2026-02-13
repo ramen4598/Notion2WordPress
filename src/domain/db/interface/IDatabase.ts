@@ -1,8 +1,8 @@
 import { JobType } from '../enum/db.enums.js';
-import { SyncJob } from '../model/syncJob.js';
-import { SyncJobItem } from '../model/syncJobItem.js';
+import { JobRow } from '../model/job.js';
+import { PageRow } from '../model/page.js';
 import { ImageAsset } from '../model/imageAsset.js';
-import { PagePostMap } from '../model/pagePostMap.js';
+import { NotionPagePostMap } from '../model/nPagePostMap.js';
 
 export interface IDatabase {
   /**
@@ -12,28 +12,28 @@ export interface IDatabase {
   closeDb(): void;
 
   /**
-   * Creates a new sync job.
+   * Creates a new job.
    * @param jobType The type of the job.
-   * @returns The ID of the created sync job.
+   * @returns The ID of the created job.
    * @throws {DBException} if fails
    */
-  createSyncJob(jobType: JobType): number;
+  createJob(jobType: JobType): number;
 
   /**
-   * Updates an existing sync job.
-   * @param id The ID of the sync job to update.
+   * Updates an existing job.
+   * @param id The ID of the job to update.
    * @param updates The fields to update.
    * @throws {DBException} if fail
    */
-  updateSyncJob(id: number, updates: Partial<Omit<SyncJob, 'id' | 'started_at'>>): void;
+  updateJob(id: number, updates: Partial<Omit<JobRow, 'id' | 'started_at'>>): void;
 
   /**
-   * get a sync job by id
+   * Gets a job by ID.
    * @param id
-   * @return The sync job or undefined if not found
+   * @return The job row or undefined if not found
    * @throws {DBException} if fails
    */
-  getSyncJob(id: number): SyncJob | undefined;
+  getJob(id: number): JobRow | undefined;
 
   /**
    * Gets the timestamp of the last successful sync.
@@ -43,20 +43,20 @@ export interface IDatabase {
   getLastSyncTimestamp(): string | undefined;
 
   /**
-   * Creates a new sync job item.
-   * @param item The sync job item to create.
-   * @returns The ID of the created sync job item.
+   * Creates a new page row.
+   * @param page The page row to create.
+   * @returns The ID of the created page row.
    * @throws {DBException} if fails
    */
-  createSyncJobItem(item: Omit<SyncJobItem, 'id' | 'created_at' | 'updated_at'>): number;
+  createPage(page: Omit<PageRow, 'id' | 'created_at' | 'updated_at'>): number;
 
   /**
-   * Updates an existing sync job item.
+   * Updates an existing page row.
    * @param id
    * @param updates
    * @throws {DBException} if fails
    */
-  updateSyncJobItem(id: number, updates: Partial<Omit<SyncJobItem, 'id' | 'created_at'>>): void;
+  updatePage(id: number, updates: Partial<Omit<PageRow, 'id' | 'created_at'>>): void;
 
   /**
    * creates an image asset
@@ -75,26 +75,26 @@ export interface IDatabase {
   updateImageAsset(id: number, updates: Partial<Omit<ImageAsset, 'id' | 'created_at'>>): void;
 
   /**
-   * gets image assets by sync job item ID
-   * @param syncJobItemId The ID of the sync job item
+   * Gets image assets by page ID.
+   * @param pageId The ID of the page
    * @returns An array of image assets
    * @throws {DBException} if fails
    */
-  getImageAssetsByJobItem(syncJobItemId: number): ImageAsset[];
+  getImageAssetsByPage(pageId: number): ImageAsset[];
 
   /**
-   * creates a page-post mapping
-   * @param map The page-post mapping to create
-   * @returns The ID of the created page-post mapping
+   * Creates a mapping from Notion page to WordPress post.
+   * @param map The mapping to create
+   * @returns The ID of the created mapping
    * @throws {DBException} if fails
    */
-  createPagePostMap(map: Omit<PagePostMap, 'id' | 'created_at'>): number;
+  createNPagePostMap(map: Omit<NotionPagePostMap, 'id' | 'created_at'>): number;
 
   /**
-   * gets a page-post mapping by notion page ID
+   * Gets the Notion page to WordPress post mapping by Notion page ID.
    * @param notionPageId The Notion page ID
-   * @returns The page-post mapping
+   * @returns The mapping
    * @throws {DBException} if fails
    */
-  getPagePostMap(notionPageId: string): PagePostMap | undefined;
+  getNPagePostMap(notionPageId: string): NotionPagePostMap | undefined;
 }

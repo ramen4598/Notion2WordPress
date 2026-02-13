@@ -1,6 +1,3 @@
-// Description: Database service using better-sqlite3 (synchronous API)
-// for managing sync jobs, job items, image assets, and page-post mappings.
-
 import { IDatabase } from '../interface/IDatabase.js';
 import DatabaseConstructor, { type Database as BetterSqliteDatabase } from 'better-sqlite3';
 import { logger } from '../../../lib/logger.js';
@@ -8,10 +5,10 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { JobType, JobStatus } from '../enum/db.enums.js';
-import { SyncJob } from '../model/syncJob.js';
-import { SyncJobItem } from '../model/syncJobItem.js';
+import { JobRow } from '../model/job.js';
+import { PageRow } from '../model/page.js';
 import { ImageAsset } from '../model/imageAsset.js';
-import { PagePostMap } from '../model/pagePostMap.js';
+import { NotionPagePostMap } from '../model/nPagePostMap.js';
 import { DBException, DBInitializationException } from '../error/db.error.js';
 import { asError } from '../../../lib/utils.js';
 
@@ -24,8 +21,8 @@ class Database implements IDatabase {
   private db: BetterSqliteDatabase | null = null;
 
   private getDb(): BetterSqliteDatabase {
-    if (!this.db) this.db = this.initDB(); 
-    return this.db; 
+    if (!this.db) this.db = this.initDB();
+    return this.db;
   }
 
   private initDB(): BetterSqliteDatabase {
@@ -65,7 +62,7 @@ class Database implements IDatabase {
 
   private initSchema(db: BetterSqliteDatabase, schemaPath: string): void {
     let schemaSql: string;
-    try{
+    try {
       schemaSql = fs.readFileSync(schemaPath, 'utf-8');
     } catch (error: unknown) {
       logger.warn(`Failed to read schema file: ${schemaPath}`, asError(error));
@@ -93,10 +90,10 @@ class Database implements IDatabase {
     logger.debug('sqlite3 - Database connection closed');
   }
 
-  // Sync Jobs
-  createSyncJob(jobType: JobType): number {
+  // Jobs
+  createJob(jobType: JobType): number {
     const sql = `
-      INSERT INTO sync_jobs (job_type, status, pages_processed, pages_succeeded, pages_failed)
+      INSERT INTO jobs (job_type, status, pages_processed, pages_succeeded, pages_failed)
       VALUES (?, ?, 0, 0, 0)
     `;
 
@@ -106,18 +103,18 @@ class Database implements IDatabase {
       stmt = this.getDb().prepare(sql);
       info = stmt.run(jobType, JobStatus.Running);
     } catch (error: unknown) {
-      logger.warn('Failed to create sync job', asError(error));
-      throw new DBException('Failed to create sync job', error);
+      logger.warn('Failed to create job', asError(error));
+      throw new DBException('Failed to create job', error);
     }
 
     const id = Number(info.lastInsertRowid);
-    logger.debug(`sqlite3 - Created sync job with ID: ${id}`);
+    logger.debug(`sqlite3 - Created job with ID: ${id}`);
     return id;
   }
 
-  updateSyncJob(
+  updateJob(
     id: number,
-    updates: Partial<Omit<SyncJob, 'id' | 'started_at'>> // id and started_at are not updatable
+    updates: Partial<Omit<JobRow, 'id' | 'started_at'>> // id and started_at are not updatable
   ): void {
     type valuesType = string | number;
     const fields: string[] = [];
@@ -153,45 +150,49 @@ class Database implements IDatabase {
 
     if (fields.length === 0) return;
 
-    const sql = `UPDATE sync_jobs SET ${fields.join(', ')} WHERE id = ?`;
+    const sql = `UPDATE jobs SET ${fields.join(', ')} WHERE id = ?`;
     values.push(id);
 
     try {
       const stmt = this.getDb().prepare(sql);
       stmt.run(...values);
     } catch (error: unknown) {
-      logger.warn(`Failed to update sync job ${id} to ${JSON.stringify(updates)}`, asError(error));
-      throw new DBException('Failed to update sync job', error);
+      logger.warn(`Failed to update job ${id} to ${JSON.stringify(updates)}`, asError(error));
+      throw new DBException('Failed to update job', error);
     }
-    logger.debug(`sqlite3 - Updated sync job ${id} with ${JSON.stringify(updates)}`);
+    logger.debug(`sqlite3 - Updated job ${id} with ${JSON.stringify(updates)}`);
   }
 
-  getSyncJob(id: number): SyncJob | undefined {
-    const sql = 'SELECT * FROM sync_jobs WHERE id = ?';
+  getJob(id: number): JobRow | undefined {
+    const sql = 'SELECT * FROM jobs WHERE id = ?';
 
-    type rowType = SyncJob | undefined;
+    type rowType = JobRow | undefined;
     try {
       const job = this.getDb().prepare(sql).get(id) as rowType;
-      logger.debug(`sqlite3 - Fetched sync job ${id}: ${job ? JSON.stringify(job) : 'not found'}`);
+      logger.debug(`sqlite3 - Fetched job ${id}: ${job ? JSON.stringify(job) : 'not found'}`);
       return job;
     } catch (error: unknown) {
-      logger.warn(`Failed to get sync job ${id}`, asError(error));
-      throw new DBException(`Failed to get sync job ${id}`, error);
+      logger.warn(`Failed to get job ${id}`, asError(error));
+      throw new DBException(`Failed to get job ${id}`, error);
     }
   }
 
   getLastSyncTimestamp(): string | undefined {
     const sql = `
       SELECT last_sync_timestamp
-      FROM sync_jobs
+      FROM jobs
       WHERE status = ? AND last_sync_timestamp IS NOT NULL
       ORDER BY completed_at DESC
       LIMIT 1
     `;
 
     try {
-      const row = this.getDb().prepare(sql).get(JobStatus.Completed) as { last_sync_timestamp: string } | undefined;
-      logger.debug(`sqlite3 - Fetched last sync timestamp: ${row ? row.last_sync_timestamp : 'none'}`);
+      const row = this.getDb().prepare(sql).get(JobStatus.Completed) as
+        | { last_sync_timestamp: string }
+        | undefined;
+      logger.debug(
+        `sqlite3 - Fetched last sync timestamp: ${row ? row.last_sync_timestamp : 'none'}`
+      );
       return row ? row.last_sync_timestamp : undefined;
     } catch (error: unknown) {
       logger.warn('Failed to get last sync timestamp', asError(error));
@@ -199,24 +200,26 @@ class Database implements IDatabase {
     }
   }
 
-  // Sync Job Items
-  createSyncJobItem(item: Omit<SyncJobItem, 'id' | 'created_at' | 'updated_at'>): number {
+  // Pages
+  createPage(page: Omit<PageRow, 'id' | 'created_at' | 'updated_at'>): number {
     const sql = `
-      INSERT INTO sync_job_items (sync_job_id, notion_page_id, wp_post_id, status)
+      INSERT INTO pages (job_id, notion_page_id, wp_post_id, status)
       VALUES (?, ?, ?, ?)
     `;
     try {
       const stmt = this.getDb().prepare(sql);
-      const info = stmt.run(item.sync_job_id, item.notion_page_id, item.wp_post_id, item.status);
-      logger.debug(`sqlite3 - Created sync job item for Notion page ${item.notion_page_id} with ID: ${info.lastInsertRowid}`);
+      const info = stmt.run(page.job_id, page.notion_page_id, page.wp_post_id, page.status);
+      logger.debug(
+        `sqlite3 - Created page row for Notion page ${page.notion_page_id} with ID: ${info.lastInsertRowid}`
+      );
       return Number(info.lastInsertRowid);
     } catch (error: unknown) {
-      logger.warn('Failed to create sync job item', asError(error));
-      throw new DBException('Failed to create sync job item', error);
+      logger.warn('Failed to create page row', asError(error));
+      throw new DBException('Failed to create page row', error);
     }
   }
 
-  updateSyncJobItem(id: number, updates: Partial<Omit<SyncJobItem, 'id' | 'created_at'>>): void {
+  updatePage(id: number, updates: Partial<Omit<PageRow, 'id' | 'created_at'>>): void {
     const fields: string[] = ["updated_at = datetime('now')"];
     const values: any[] = [];
 
@@ -233,29 +236,31 @@ class Database implements IDatabase {
       values.push(updates.error_message);
     }
 
-    const sql = `UPDATE sync_job_items SET ${fields.join(', ')} WHERE id = ?`;
+    const sql = `UPDATE pages SET ${fields.join(', ')} WHERE id = ?`;
     values.push(id);
     try {
-      this.getDb().prepare(sql).run(...values);
+      this.getDb()
+        .prepare(sql)
+        .run(...values);
     } catch (error: unknown) {
-      logger.warn(`Failed to update sync job item ${id} to ${JSON.stringify(updates)}`, asError(error));
-      throw new DBException('Failed to update sync job item', error);
+      logger.warn(`Failed to update page ${id} to ${JSON.stringify(updates)}`, asError(error));
+      throw new DBException('Failed to update page', error);
     }
-    logger.debug(`sqlite3 - Updated sync job item ${id} with ${JSON.stringify(updates)}`);
+    logger.debug(`sqlite3 - Updated page ${id} with ${JSON.stringify(updates)}`);
   }
 
   // Image Assets
   createImageAsset(asset: Omit<ImageAsset, 'id' | 'created_at'>): number {
     const sql = `
       INSERT INTO image_assets (
-        sync_job_item_id, notion_page_id, notion_block_id, notion_url,
+        page_id, notion_page_id, notion_block_id, notion_url,
         wp_media_id, wp_media_url, status, error_message
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
     try {
       const stmt = this.getDb().prepare(sql);
       const info = stmt.run(
-        asset.sync_job_item_id,
+        asset.page_id,
         asset.notion_page_id,
         asset.notion_block_id,
         asset.notion_url,
@@ -264,7 +269,9 @@ class Database implements IDatabase {
         asset.status,
         asset.error_message
       );
-      logger.debug(`sqlite3 - Created image asset for Notion block ${asset.notion_block_id} with ID: ${info.lastInsertRowid}`);
+      logger.debug(
+        `sqlite3 - Created image asset for Notion block ${asset.notion_block_id} with ID: ${info.lastInsertRowid}`
+      );
       return Number(info.lastInsertRowid);
     } catch (error: unknown) {
       logger.warn('Failed to create image asset', asError(error));
@@ -299,31 +306,36 @@ class Database implements IDatabase {
     values.push(id);
 
     try {
-      this.getDb().prepare(sql).run(...values);
+      this.getDb()
+        .prepare(sql)
+        .run(...values);
     } catch (error: unknown) {
-      logger.warn(`Failed to update image asset ${id} to ${JSON.stringify(updates)}`, asError(error));
+      logger.warn(
+        `Failed to update image asset ${id} to ${JSON.stringify(updates)}`,
+        asError(error)
+      );
       throw new DBException('Failed to update image asset', error);
     }
     logger.debug(`sqlite3 - Updated image asset ${id} with ${JSON.stringify(updates)}`);
   }
 
-  getImageAssetsByJobItem(syncJobItemId: number): ImageAsset[] {
-    const sql = 'SELECT * FROM image_assets WHERE sync_job_item_id = ?';
+  getImageAssetsByPage(pageId: number): ImageAsset[] {
+    const sql = 'SELECT * FROM image_assets WHERE page_id = ?';
 
     try {
-      const rows = this.getDb().prepare(sql).all(syncJobItemId) as ImageAsset[];
-      logger.debug(`sqlite3 - Fetched ${rows.length} image assets for job item ${syncJobItemId}`);
+      const rows = this.getDb().prepare(sql).all(pageId) as ImageAsset[];
+      logger.debug(`sqlite3 - Fetched ${rows.length} image assets for page ${pageId}`);
       return rows;
     } catch (error: unknown) {
-      logger.warn(`Failed to get image assets for job item ${syncJobItemId}`, asError(error));
-      throw new DBException('Failed to get image assets for job item', error);
+      logger.warn(`Failed to get image assets for page ${pageId}`, asError(error));
+      throw new DBException('Failed to get image assets for page', error);
     }
   }
 
   // Page Post Map
-  createPagePostMap(map: Omit<PagePostMap, 'id' | 'created_at'>): number {
+  createNPagePostMap(map: Omit<NotionPagePostMap, 'id' | 'created_at'>): number {
     const sql = `
-      INSERT INTO page_post_map (notion_page_id, wp_post_id)
+      INSERT INTO npage_post_map (notion_page_id, wp_post_id)
       VALUES (?, ?)
     `;
     let stmt;
@@ -332,25 +344,38 @@ class Database implements IDatabase {
       stmt = this.getDb().prepare(sql);
       info = stmt.run(map.notion_page_id, map.wp_post_id);
     } catch (error: unknown) {
-      logger.warn(`Failed to create page-post mapping ${map.notion_page_id} -> ${map.wp_post_id}`, asError(error));
-      throw new DBException('Failed to create page-post mapping', error);
+      logger.warn(
+        `Failed to create Notion page -> WordPress post mapping ${map.notion_page_id} -> ${map.wp_post_id}`,
+        asError(error)
+      );
+      throw new DBException('Failed to create Notion page -> WordPress post mapping', error);
     }
     const id = Number(info.lastInsertRowid);
-    logger.debug(`sqlite3 - Created page-post mapping: ${map.notion_page_id} -> ${map.wp_post_id}`);
+    logger.debug(
+      `sqlite3 - Created Notion page -> WordPress post mapping: ${map.notion_page_id} -> ${map.wp_post_id}`
+    );
     return id;
   }
 
-  getPagePostMap(notionPageId: string): PagePostMap | undefined {
-    const sql = 'SELECT * FROM page_post_map WHERE notion_page_id = ?';
+  getNPagePostMap(notionPageId: string): NotionPagePostMap | undefined {
+    const sql = 'SELECT * FROM npage_post_map WHERE notion_page_id = ?';
 
-    type rowType = PagePostMap | undefined;
+    type rowType = NotionPagePostMap | undefined;
     try {
       const row = this.getDb().prepare(sql).get(notionPageId) as rowType;
-      logger.debug(`sqlite3 - Fetched page-post mapping for Notion page ${notionPageId}: ${row ? JSON.stringify(row) : 'not found'}`);
+      logger.debug(
+        `sqlite3 - Fetched Notion page -> WordPress post mapping for Notion page ${notionPageId}: ${row ? JSON.stringify(row) : 'not found'}`
+      );
       return row;
     } catch (error: unknown) {
-      logger.warn(`Failed to get page-post mapping for Notion page ${notionPageId}`, asError(error));
-      throw new DBException(`Failed to get page-post mapping for Notion page ${notionPageId}`, error);
+      logger.warn(
+        `Failed to get Notion page -> WordPress post mapping for Notion page ${notionPageId}`,
+        asError(error)
+      );
+      throw new DBException(
+        `Failed to get Notion page -> WordPress post mapping for Notion page ${notionPageId}`,
+        error
+      );
     }
   }
 }

@@ -10,7 +10,7 @@ Automated synchronization system that publishes Notion pages to WordPress as dra
 
 1. User sets Notion page `status` to `adding`
 2. System syncs page to WordPress as draft (scheduled or manual trigger)
-3. System updates Notion `status` to `complete`
+3. System updates Notion `status` to `done`
 4. Admin reviews and publishes draft manually
 5. Telegram notification sent on success/failure
 
@@ -18,7 +18,7 @@ Automated synchronization system that publishes Notion pages to WordPress as dra
 
 - `writing`: Ignored by sync
 - `adding`: Triggers sync to WordPress draft
-- `complete`: Successfully synced
+- `done`: Successfully synced
 - `error`: Sync failed
 
 ## Key Features

@@ -24,7 +24,7 @@ export interface IPageProcessor {
 
   /**
    * Sync a list of Notion pages.
-   * @param syncJob - The sync job context.
+   * @param job - The job context.
    * @param pages - The list of Notion pages to sync.
    * @throws PageException if the sync process fails.
    */
@@ -40,7 +40,7 @@ export interface IPageProcessor {
 
   /**
    * Create a Page record in the database.
-   * @param jobId - The ID of the sync job.
+   * @param jobId - The ID of the job.
    * @param notionPageId - The ID of the Notion page.
    * @returns A promise that resolves to the created Page record.
    * @throws PageException if the creation fails.

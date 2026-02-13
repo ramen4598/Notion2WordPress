@@ -1,6 +1,6 @@
 import { JobType, JobStatus } from '../enum/db.enums.js';
 
-export interface SyncJob {
+export interface JobRow {
   id?: number;
   job_type: JobType;
   status: JobStatus;

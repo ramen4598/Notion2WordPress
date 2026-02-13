@@ -5,7 +5,7 @@ import type { ImageReference, NotionPage } from '../../notion/interface/notion.j
 import type { Placeholder2WpUrlMap } from '../../image/interface/imageProcessor.js';
 import { PageException } from '../error/page.error.js';
 import { NotionPageStatus as NPStatus } from '../../notion/enum/notion.enums.js';
-import { JobStatus, JobItemStatus } from '../../db/enum/db.enums.js';
+import { JobStatus, PageStatus } from '../../db/enum/db.enums.js';
 import { logger } from '../../../lib/logger.js';
 import { asError } from '../../../lib/utils.js';
 import { db } from '../../db/impl/sqlite3.js';
@@ -14,11 +14,12 @@ import { notion } from '../../notion/impl/notionImpl.js';
 import { imageProcessor } from '../../image/impl/imageProcessorImpl.js';
 
 export class PageProcessor implements IPageProcessor {
-  
   async queryPages(): Promise<NotionPage[]> {
     const lastSyncTimestamp = this.getLastSyncTimestamp();
     const nPages = await this.queryPagesToNotion(lastSyncTimestamp);
-    logger.info(`Queried ${nPages.length} pages from Notion ${lastSyncTimestamp ? 'since last sync timestamp: ' + lastSyncTimestamp : ''}`);
+    logger.info(
+      `Queried ${nPages.length} pages from Notion ${lastSyncTimestamp ? 'since last sync timestamp: ' + lastSyncTimestamp : ''}`
+    );
     return nPages;
   }
 
@@ -58,18 +59,18 @@ export class PageProcessor implements IPageProcessor {
 
   private updateJobAfterSyncPage(job: Job): void {
     try {
-      db.updateSyncJob(job.jobId, {
+      db.updateJob(job.jobId, {
         status: JobStatus.Completed,
         pages_processed: job.pagesProcessed,
         pages_succeeded: job.pagesSucceeded,
         pages_failed: job.pagesFailed,
       });
     } catch (error: unknown) {
-      throw new PageException('Failed to update sync job after syncing page', error);
+      throw new PageException('Failed to update job after syncing page', error);
     }
   }
 
-  async syncPage (job: Job, nPage: NotionPage): Promise<void> {
+  async syncPage(job: Job, nPage: NotionPage): Promise<void> {
     const page: Page = await this.createPage(job.jobId, nPage.id);
     try {
       await this.syncPageWithRollback(page, nPage);
@@ -88,21 +89,21 @@ export class PageProcessor implements IPageProcessor {
 
   private updateJobAfterSyncPageFailure(job: Job, nPage: NotionPage, error: unknown): void {
     job.pagesFailed++;
-    const syncError: PageError = {
+    const pageError: PageError = {
       notionPageId: nPage.id,
       pageTitle: nPage.title,
       errorMessage: asError(error).message,
     };
-    job.errors.push(syncError);
+    job.errors.push(pageError);
     logger.warn(`Failed to sync page: ${nPage.title}`, asError(error));
   }
 
   async createPage(jobId: number, notionPageId: string): Promise<Page> {
     try {
-      const page = db.createSyncJobItem({
-        sync_job_id: jobId,
+      const page = db.createPage({
+        job_id: jobId,
         notion_page_id: notionPageId,
-        status: JobItemStatus.Pending,
+        status: PageStatus.Pending,
       });
       logger.info(`Created Page record for Notion page ${notionPageId} with ID ${page}`);
       return {
@@ -113,7 +114,10 @@ export class PageProcessor implements IPageProcessor {
       };
     } catch (error: unknown) {
       logger.warn(`Failed to create Page record for Notion page ${notionPageId}`, asError(error));
-      throw new PageException(`Failed to create Page record for Notion page ${notionPageId}`, error);
+      throw new PageException(
+        `Failed to create Page record for Notion page ${notionPageId}`,
+        error
+      );
     }
   }
 
@@ -128,8 +132,10 @@ export class PageProcessor implements IPageProcessor {
     }
   }
 
-  private async getHtmlAndImage(nPageId: string): Promise<{ html: string; images: ImageReference[] }> {
-    const { html, images } =  await this.getHtmlAndImageFromNotion(nPageId);
+  private async getHtmlAndImage(
+    nPageId: string
+  ): Promise<{ html: string; images: ImageReference[] }> {
+    const { html, images } = await this.getHtmlAndImageFromNotion(nPageId);
     await this.updateNotionPageStatusToDone(nPageId);
     return { html, images };
   }
@@ -142,7 +148,9 @@ export class PageProcessor implements IPageProcessor {
     }
   }
 
-  private async getHtmlAndImageFromNotion(nPageId: string): Promise<{ html: string; images: ImageReference[] }> {
+  private async getHtmlAndImageFromNotion(
+    nPageId: string
+  ): Promise<{ html: string; images: ImageReference[] }> {
     try {
       return await notion.getPageHtmlAndImage(nPageId);
     } catch (error: unknown) {
@@ -155,7 +163,10 @@ export class PageProcessor implements IPageProcessor {
       const imageMap: Placeholder2WpUrlMap = await imageProcessor.syncImages(page, images);
       return await imageProcessor.replaceImageUrls(html, imageMap);
     } catch (error: unknown) {
-      throw new PageException(`Failed to upload images for Notion page ${page.notionPageId}`, error);
+      throw new PageException(
+        `Failed to upload images for Notion page ${page.notionPageId}`,
+        error
+      );
     }
   }
 
@@ -167,23 +178,26 @@ export class PageProcessor implements IPageProcessor {
   private async createPostToWordPress(page: Page, title: string, finalHtml: string): Promise<void> {
     const post = await wordPress.createPost({
       title: title,
-      content: finalHtml
+      content: finalHtml,
     });
     page.wpPostId = post.id;
   }
 
   private updateDbAfterPostCreation(page: Page): void {
     try {
-      db.updateSyncJobItem(page.id, {
+      db.updatePage(page.id, {
         wp_post_id: page.wpPostId,
-        status: JobItemStatus.Success,
+        status: PageStatus.Success,
       });
-      db.createPagePostMap({
+      db.createNPagePostMap({
         notion_page_id: page.notionPageId,
         wp_post_id: page.wpPostId!,
       });
     } catch (error: unknown) {
-      throw new PageException(`Failed to update DB after creating post for Notion page ${page.notionPageId}`, error);
+      throw new PageException(
+        `Failed to update DB after creating post for Notion page ${page.notionPageId}`,
+        error
+      );
     }
   }
 
@@ -206,14 +220,17 @@ export class PageProcessor implements IPageProcessor {
     }
 
     await notion.updatePageStatus(notionPageId, NPStatus.Error).catch((error: unknown) => {
-      logger.warn(`Failed to update Notion page ${notionPageId} status during rollback`, asError(error));
+      logger.warn(
+        `Failed to update Notion page ${notionPageId} status during rollback`,
+        asError(error)
+      );
     });
 
-    // Mark job item as failed
+    // Mark page as failed
     if (pageId) {
       try {
-        db.updateSyncJobItem(pageId, {
-          status: JobItemStatus.Failed,
+        db.updatePage(pageId, {
+          status: PageStatus.Failed,
           error_message: errorMessage,
         });
       } catch (error: unknown) {

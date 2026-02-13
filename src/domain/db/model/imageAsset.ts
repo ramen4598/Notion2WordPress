@@ -2,7 +2,7 @@ import { ImageAssetStatus } from '../enum/db.enums.js';
 
 export interface ImageAsset {
   id?: number;
-  sync_job_item_id: number;
+  page_id: number;
   notion_page_id: string;
   notion_block_id: string;
   notion_url: string;

@@ -9,31 +9,31 @@ export type JobInResult = Job & {
 };
 
 /**
- * Request type for creating a sync job result.
+ * Request type for creating a job result.
  */
 export type JobResultRequest = {
-    /**
-     * Indicates whether a sync job was performed.
-     * If false, it means there were no pages to sync.
-     */
-    isPerformed: boolean;
-    /**
-     * The sync job details, or null if no job was performed.
-     */
-    syncJob: JobInResult | null;
-}
+  /**
+   * Indicates whether a job was performed.
+   * If false, it means there were no pages to sync.
+   */
+  isPerformed: boolean;
+  /**
+   * The job details, or null if no job was performed.
+   */
+  job: JobInResult | null;
+};
 
 /**
- * Response returned after executing a sync job.
+ * Response returned after executing a job.
  * Using Special Case Pattern
  */
 export interface IJobResult {
   /**
-   * Logs the result of the sync job.
+   * Logs the result of the job.
    */
   logResult(): void;
   /**
-   * Gets the exit code based on the sync job status.
+   * Gets the exit code based on the job status.
    * @returns Exit code: 0 for success, 1 for failure.
    */
   getExitCode(): number;

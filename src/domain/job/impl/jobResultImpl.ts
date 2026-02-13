@@ -46,7 +46,7 @@ class JobResultEmpty implements IJobResult {
   constructor() {}
 
   logResult(): void {
-    logger.info('No pages to sync for this manual job');
+    logger.info('No notion pages to sync for this manual job');
   }
 
   getExitCode(): number {
@@ -56,15 +56,15 @@ class JobResultEmpty implements IJobResult {
 
 /**
  * Factory class to create IJobResult instances.
- * Based on whether a sync job was performed or not.
- * @param syncJob The sync job data or null if no job was performed.
+ * Based on whether a job was performed or not.
+ * @param job The job data or null if no job was performed.
  * @returns An instance of IJobResult.
  */
 export class JobResultFactory {
   static create(request: JobResultRequest): IJobResult {
-    if (!request.isPerformed || request.syncJob === null) {
+    if (!request.isPerformed || request.job === null) {
       return new JobResultEmpty();
     }
-    return new JobResult(request.syncJob);
+    return new JobResult(request.job);
   }
 }

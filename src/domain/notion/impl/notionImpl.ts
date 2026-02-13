@@ -79,7 +79,6 @@ class Notion implements INotion {
 
         hasMore = response.has_more;
         nextCursor = response.next_cursor;
-        logger.warn(`Here !! - ${JSON.stringify(pages)}`);
         logger.debug(
           `notion - queryPages: fetched ${response.results.length} pages, hasMore: ${hasMore}, nextCursor: ${nextCursor}`
         );

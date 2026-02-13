@@ -1,7 +1,7 @@
 # Quickstart Guide: Notion to WordPress Sync
 
-**Last Updated**: 2025-11-23  
-**Version**: 1.1
+**Last Updated**: 2026-02-13  
+**Version**: 1.3.0
 
 ## Introduction
 
@@ -119,7 +119,7 @@ You'll need credentials from three services. Follow these steps carefully.
    - ✅ **Read content**
    - ✅ **Update content**
 5. Click **"Submit"**
-6. Click **"Show"** and copy the **Internal Integration Token** (starts with `secret_`)
+6. Click **"Show"** and copy the **Internal Integration Token** (usually starts with `ntn_`)
 7. Save this token - you'll need it for your `.env` file
 
 > **⚠️ Critical Step**: You must share your database with this integration!  
@@ -140,10 +140,11 @@ You need a Notion database with a status property to track sync state.
    - Choose **"Status"** type
    - Name it `status` (or customize via `NOTION_PAGE_PROPERTY_NAME` env var)
 3. **Configure status options**:
-   - `writing` - Pages you're still drafting (ignored by sync)
-   - `adding` - Ready to sync to WordPress
-   - `done` - Successfully synced
-   - `error` - Sync failed
+    - `writing` - Pages you're still drafting (ignored by sync)
+    - `adding` - Ready to sync to WordPress
+    - `done` - Successfully synced
+    - `error` - Sync failed
+
 
 4. **Get the Database ID**:
    - Open your database as a **full page** (not inline)
@@ -235,7 +236,7 @@ Replace the placeholder values with your actual credentials from Step 2:
 
 | Variable | Where to Get It | Example Format |
 |----------|----------------|----------------|
-| `NOTION_API_TOKEN` | Step 2.1 - Notion integrations page | `secret_ABC123...` (50 chars) |
+| `NOTION_API_TOKEN` | Step 2.1 - Notion integrations page | `ntn_ABC123...` |
 | `NOTION_DATASOURCE_ID` | Step 2.2 - Database URL | `1a2b3c4d5e6f...` (32 chars, no hyphens) |
 | `WP_API_URL` | Your WordPress site + `/wp-json` | `https://myblog.com/wp-json` |
 | `WP_USERNAME` | Your WordPress login username | `john_doe` |
@@ -1236,7 +1237,7 @@ docker run ... ghcr.io/ramen4598/notion2wordpress:v1.0.0
 4. **Configuration** (remove all tokens/passwords):
    ```bash
    # Example sanitized .env:
-   NOTION_API_TOKEN=secret_***
+   NOTION_API_TOKEN=ntn_***
    NOTION_DATASOURCE_ID=abc123***
    WP_API_URL=https://mysite.com/wp-json
    # ...etc
@@ -1250,7 +1251,7 @@ docker run ... ghcr.io/ramen4598/notion2wordpress:v1.0.0
 - **Full Documentation**: See `README.md` in project root
 - **Developer Guide**: See `docs/quickstart-dev.md` for development setup
 - **Technical Spec**: See `docs/spec.md` for architecture details
-- **Diagram**: See `docs/diagram/` for some details
+- **Diagrams**: See `docs/diagrams/` for some details
 - **Project Repository**: https://github.com/ramen4598/Notion2Wordpress
 
 ---

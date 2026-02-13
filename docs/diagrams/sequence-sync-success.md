@@ -8,10 +8,10 @@ sequenceDiagram
     participant ENTRY as CLI Client or Cron Job
     participant Orchestrator as Orchestrator
     participant DB as Database
-    participant Notion as NotionService
+    participant Notion as Notion
     participant Downloader as ImageDownloader
-    participant WP as WordPressService
-    participant Telegram as TelegramService
+    participant WP as WordPress
+    participant Telegram as Telegram
 
     ENTRY->>Orchestrator: execute(jobType)
     Orchestrator->>DB: createJob(jobType)

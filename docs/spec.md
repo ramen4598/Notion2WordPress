@@ -1,6 +1,6 @@
 # Notion to WordPress Sync Specification
 
-**Last Updated**: 2025-11-13
+**Last Updated**: 2026-02-13
 
 ## Overview
 
@@ -46,7 +46,7 @@ Automated synchronization system that publishes Notion pages to WordPress as dra
 ## Technical Stack
 
 - **Runtime**: Node.js 20.x LTS, TypeScript 5.9.3
-- **APIs**: @notionhq/client, @wordpress/api-fetch, Telegraf
+- **APIs**: @notionhq/client, WordPress REST API (axios), Telegraf
 - **Conversion**: notion-to-md + marked (Notion → Markdown → HTML)
 - **Scheduler**: node-cron
 - **Database**: SQLite (better-sqlite3) for page-post mapping

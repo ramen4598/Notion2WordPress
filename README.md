@@ -43,30 +43,34 @@ An automated synchronization system that syncs Notion pages to WordPress blog as
 ## 🏗️ Tech Stack
 
 - **Runtime**: Node.js 20.x, TypeScript 5.9.3
-- **Notion API**: @notionhq/client 5.4.0
-- **WordPress API**: axios 1.13.2
-- **Content Conversion**: notion-to-md 3.1.9, marked 17.0.0
+- **Notion API**: @notionhq/client 5.9.0
+- **WordPress API**: axios 1.13.5
+- **Content Conversion**: notion-to-md 3.1.9, marked 17.0.1
 - **Scheduler**: node-cron 4.2.1
-- **Database**: better-sqlite3 12.4.1
+- **Database**: better-sqlite3 12.6.2
 - **Notifications**: Telegraf 4.16.3
-- **Testing**: Vitest 4.0.8
+- **Testing**: Vitest 4.0.18
 - **Deployment**: Docker
 
 ## 📁 Project Structure
 
 ```
 src/
-├── index.ts                 # Main entry point
-├── cli/                     # CLI commands
-├── config/                  # Environment configuration
-├── db/                      # Database management
-├── enums/                   # Type definitions
-├── lib/                     # Utility functions
-├── orchestrator/            # Sync orchestrator
-└── services/                # External service integrations
-    ├── notionService.ts     # Notion API
-    ├── wpService.ts         # WordPress API
-    └── telegramService.ts   # Telegram API
+├── index.ts                      # Scheduled sync entry (cron)
+├── cli/                          # CLI entrypoints
+│   └── syncManual.ts             # Manual sync command
+├── config/                       # Environment configuration
+│   └── config.ts                 # Loads .env and exports typed config
+├── domain/                       # Application domain modules
+│   ├── orchestrator/             # Top-level orchestration
+│   ├── job/                      # Job processing + results
+│   ├── page/                     # Page query + sync workflow
+│   ├── image/                    # Image download/upload pipeline
+│   ├── notion/                   # Notion integration
+│   ├── wordPress/                # WordPress integration
+│   ├── notification/             # Notifications (Telegram)
+│   └── db/                       # SQLite persistence (jobs/pages/assets/map)
+└── lib/                          # Shared utilities (logger, retry, helpers)
 ```
 
 ## 📖 Documentation
@@ -74,7 +78,6 @@ src/
 - [Specification](./docs/spec.md) - Complete feature and technical specifications
 - [Quick Start Guide](./docs/quickstart.md) - Detailed setup instructions and examples
 - [Sequence Diagrams](./docs/diagrams/) - Sync orchestration flow diagrams
-- [Contracts](./docs/contracts/) - API interface definitions
 
 ## ⚠️ Limitations (MVP)
 

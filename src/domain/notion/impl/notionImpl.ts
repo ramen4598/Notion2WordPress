@@ -79,6 +79,7 @@ class Notion implements INotion {
 
         hasMore = response.has_more;
         nextCursor = response.next_cursor;
+        logger.warn(`Here !! - ${JSON.stringify(pages)}`);
         logger.debug(
           `notion - queryPages: fetched ${response.results.length} pages, hasMore: ${hasMore}, nextCursor: ${nextCursor}`
         );
@@ -213,21 +214,21 @@ class Notion implements INotion {
   private extractStatus(
     page: { properties?: Record<string, unknown> } | unknown
   ): NotionPageStatus {
-    if (!isRecord(page)) return NotionPageStatus.Writing;
+    if (!isRecord(page)) return NotionPageStatus.Adding;
     const props = page.properties as Record<string, unknown> | undefined;
-    if (!props) return NotionPageStatus.Writing;
+    if (!props) return NotionPageStatus.Adding;
     const statusProp = props[config.notionPageStatusProperty] as unknown;
-    if (!isRecord(statusProp)) return NotionPageStatus.Writing;
+    if (!isRecord(statusProp)) return NotionPageStatus.Adding;
 
     // Support both legacy "select" and Notion "status" property shapes.
     const candidate = (statusProp['status'] ?? statusProp['select']) as unknown;
-    if (!isRecord(candidate)) return NotionPageStatus.Writing;
+    if (!isRecord(candidate)) return NotionPageStatus.Adding;
     const name = candidate['name'];
-    if (typeof name !== 'string') return NotionPageStatus.Writing;
+    if (typeof name !== 'string') return NotionPageStatus.Adding;
     if (Object.values(NotionPageStatus).includes(name as NotionPageStatus)) {
       return name as NotionPageStatus;
     }
-    return NotionPageStatus.Writing;
+    return NotionPageStatus.Adding;
   }
 
   /**

@@ -1,4 +1,4 @@
-import type { INotion, NotionPage, QueryPagesOptions, ImageReference, GetPageHtmlAndImageResponse, UpdatePageStatusResponse } from '../interface/notion.js';
+import type { INotion, NotionPage, QueryPagesOptions, GetPageHtmlResponse, UpdatePageStatusResponse } from '../interface/notion.js';
 import { NotionException } from '../error/notion.error.js';
 import { NotionPageStatus } from '../enum/notion.enums.js';
 import { config } from '../../../config/config.js';
@@ -94,13 +94,11 @@ class Notion implements INotion {
   /**
    * Get the HTML content of a Notion page by its ID.
    * Converts the page content to Markdown and then to HTML.
-   * Also extracts image references from the content.
-   * After extraction, replaces image URLs with placeholders in the HTML.
    * @param pageId - The ID of the Notion page.
-   * @returns A promise that resolves to an object containing HTML content and image references.
+   * @returns A promise that resolves to an object containing HTML content.
    * @throws Error if the conversion fails after retries.
    */
-  async getPageHtmlAndImage(pageId: string): Promise<GetPageHtmlAndImageResponse> {
+  async getPageHtml(pageId: string): Promise<GetPageHtmlResponse> {
     const onRetryFn = (error: Error, attempt: number) => {
       logger.warn(`Get Notion page HTML (attempt ${attempt})`, { error: error.message });
     };
@@ -112,16 +110,14 @@ class Notion implements INotion {
 
       // Handle callout blocks
       mdBlocks = this.handleCalloutRecursively(mdBlocks);
-      // Extract images and replace urls with placeholders
-      const images = this.extractImagesRecursively(mdBlocks);
 
       // Get HTML
       const mdString = this.n2m.toMarkdownString(mdBlocks);
       const markdownContent = mdString.parent ?? ''; // Handle empty pages gracefully
       const html = marked.parse(markdownContent) as string;
 
-      logger.debug(`notion - Converted page ${pageId} to HTML with ${images.length} images`);
-      return { html: html, images: images };
+      logger.debug(`notion - Converted page ${pageId} to HTML`);
+      return { html: html };
     } catch (error: unknown) {
       logger.warn(`Failed to get html for page ${pageId}`, asError(error));
       throw new NotionException(`Failed to get page ${pageId} HTML`, error);
@@ -271,44 +267,6 @@ class Notion implements INotion {
       }
     }
     return updatedBlocks;
-  }
-
-  /**
-   * Extract image references recursively from MdBlock array.
-   * Replaces image URLs in the block content with placeholders.
-   * @param mdBlocks - The array of MdBlock objects.
-   * @returns An array of ImageReference objects extracted from the blocks.
-   */
-  private extractImagesRecursively(mdBlocks: MdBlock[]): ImageReference[] {
-    let images: ImageReference[] = [];
-
-    if (!Array.isArray(mdBlocks) || mdBlocks.length === 0) return images;
-
-    for (const block of mdBlocks) {
-      if (block.type === 'image') {
-        const b = block as { parent: string; blockId: string };
-        const p = b.parent;
-        const placeholder = `image-${b.blockId}`;
-
-        // Extract altText and url from markdown syntax ![alt](url)
-        const imageRegex = /!\[.*?\]\((.*?)\)/g;
-        let match = imageRegex.exec(p);
-        if (!match)
-          throw new Error(
-            `Failed to extract image url from markdown block: ${JSON.stringify(block)}`
-          );
-        const altText = match[0].slice(2, match[0].indexOf('](')); // 2 is length of '!['
-        const url = match[1];
-
-        // Replace url with placeholder at here!
-        block.parent = block.parent.replace(url, placeholder);
-        images.push({ blockId: b.blockId, url, altText, placeholder });
-      }
-
-      images.push(...this.extractImagesRecursively(block.children));
-    }
-
-    return images;
   }
 
   /**

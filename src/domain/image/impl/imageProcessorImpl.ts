@@ -1,9 +1,5 @@
-import type {
-  IImageProcessor,
-  Placeholder2WpUrlMap,
-  Placeholder2WpUrlRecord,
-} from '../interface/imageProcessor.js';
-import type { ImageReference } from '../../notion/interface/notion.js';
+import { load } from 'cheerio';
+import type { IImageProcessor, ProcessHtmlImagesOptions } from '../interface/imageProcessor.js';
 import type { WpMedia } from '../../wordPress/interface/wordPress.js';
 import type { Page } from '../../page/interface/pageProcessor.js';
 import type { DownloadImageResponse } from '../interface/imageDownloader.js';
@@ -13,68 +9,66 @@ import { imageDownloader } from './notionImgDownloader.js';
 import { wordPress } from '../../wordPress/impl/wordPressImpl.js';
 import { db } from '../../db/impl/sqlite3.js';
 import { logger } from '../../../lib/logger.js';
-import { config } from '../../../config/config.js';
 import { asError } from '../../../lib/utils.js';
 
+type HtmlImageReference = {
+  blockId: string;
+  src: string;
+  altText?: string;
+};
+
 class ImageProcessor implements IImageProcessor {
-  async syncImages(page: Page, images: ImageReference[]): Promise<Placeholder2WpUrlMap> {
-    const results: PromiseSettledResult<Placeholder2WpUrlRecord>[] = await this.syncImagesInBatches(
-      page,
-      images
-    );
-    this.handleErrors(results);
-    return this.buildImageMapFromResults(results);
-  }
-
-  private buildImageMapFromResults(
-    results: PromiseSettledResult<Placeholder2WpUrlRecord>[]
-  ): Placeholder2WpUrlMap {
-    const map: Placeholder2WpUrlMap = new Map();
-    results.forEach((result) => {
-      if (result.status === 'fulfilled') {
-        const record = result.value;
-        for (const [placeholder, wpUrl] of Object.entries(record)) {
-          map.set(placeholder, wpUrl);
-        }
-      }
-    });
-    return map;
-  }
-
-  private handleErrors(results: PromiseSettledResult<Placeholder2WpUrlRecord>[]): void {
-    const errors: Error[] = [];
-    results.forEach((result) => {
-      if (result.status === 'rejected') {
-        errors.push(new Error(result.reason));
-      }
-    });
-    if (errors.length < 1) return;
-    logger.warn(`handleErrors - ${errors.length} image sync failures`);
-    throw new ImageProcessException(`Failed to sync ${errors.length} images`, errors);
-  }
-
-  private async syncImagesInBatches(
+  async processHtmlImages(
     page: Page,
-    images: ImageReference[]
-  ): Promise<PromiseSettledResult<Placeholder2WpUrlRecord>[]> {
-    const results: PromiseSettledResult<Placeholder2WpUrlRecord>[] = [];
-    const maxConcurrent = config.maxConcurrentImageDownloads;
+    html: string,
+    options?: ProcessHtmlImagesOptions
+  ): Promise<string> {
+    const $ = load(html);
+    const allImages = $('img').toArray();
 
-    for (let i = 0; i < images.length; i += maxConcurrent) {
-      logger.debug(
-        `imageProcessor - Syncing images ${i + 1} to ${Math.min(i + maxConcurrent, images.length)} of ${images.length}`
-      );
-      const batch = images.slice(i, i + maxConcurrent);
-      const promises: Promise<Placeholder2WpUrlRecord>[] = batch.map((image) =>
-        this.syncImage(page, image)
-      );
-      const batchResults = await Promise.allSettled(promises);
-      results.push(...batchResults);
+    if (allImages.length === 0) {
+      return html;
     }
-    return results;
+
+    const eligibleImages = allImages.filter((node) => {
+      const image = $(node);
+      return !(options?.excludeSelectors ?? []).some((selector) => image.is(selector));
+    });
+
+    if (eligibleImages.length === 0) {
+      return html;
+    }
+
+    for (const [index, node] of eligibleImages.entries()) {
+      const image = $(node);
+      const source = this.createHtmlImageReference(image.attr('src'), image.attr('alt'), index);
+      const wpUrl = await this.uploadHtmlImage(page, source);
+      image.attr('src', wpUrl);
+    }
+
+    logger.debug(`imageProcessor - processed ${eligibleImages.length} image URLs in HTML`);
+    return $.html();
   }
 
-  async syncImage(page: Page, image: ImageReference): Promise<Placeholder2WpUrlRecord> {
+  private createHtmlImageReference(
+    src: string | undefined,
+    altText: string | undefined,
+    index: number
+  ): HtmlImageReference {
+    const normalizedSrc = src?.trim();
+
+    if (!normalizedSrc) {
+      throw new ImageProcessException('Image src is required for HTML image processing');
+    }
+
+    return {
+      blockId: `html-image-${index + 1}`,
+      src: normalizedSrc,
+      altText,
+    };
+  }
+
+  private async uploadHtmlImage(page: Page, image: HtmlImageReference): Promise<string> {
     const assetId = this.createImageAsset(page, image);
 
     try {
@@ -92,7 +86,7 @@ class ImageProcessor implements IImageProcessor {
       this.updateImageAssetAsUploaded(assetId, media);
 
       logger.debug(`imageProcessor - Uploaded image: ${filename} -> ${media.url}`);
-      return { [image.placeholder]: media.url };
+      return media.url;
     } catch (error: unknown) {
       const err = asError(error);
       this.updateImageAssetAsFailed(assetId, err.message);
@@ -101,13 +95,13 @@ class ImageProcessor implements IImageProcessor {
     }
   }
 
-  private createImageAsset(page: Page, image: ImageReference): number {
+  private createImageAsset(page: Page, image: HtmlImageReference): number {
     try {
       return db.createImageAsset({
         page_id: page.id,
         notion_page_id: page.notionPageId,
         notion_block_id: image.blockId,
-        notion_url: image.url,
+        notion_url: image.src,
         status: ImageAssetStatus.Pending,
       });
     } catch (error: unknown) {
@@ -115,13 +109,13 @@ class ImageProcessor implements IImageProcessor {
     }
   }
 
-  private async downloadImage(image: ImageReference): Promise<DownloadImageResponse> {
+  private async downloadImage(image: HtmlImageReference): Promise<DownloadImageResponse> {
     try {
       return await imageDownloader.download({
-        url: image.url,
+        url: image.src,
       });
     } catch (error: unknown) {
-      throw new ImageProcessException(`Failed to download image from URL: ${image.url}`, error);
+      throw new ImageProcessException(`Failed to download image from URL: ${image.src}`, error);
     }
   }
 
@@ -167,20 +161,6 @@ class ImageProcessor implements IImageProcessor {
     } catch (error: unknown) {
       throw new ImageProcessException(`Failed to update image asset as failed: ${assetId}`, error);
     }
-  }
-
-  async replaceImageUrls(html: string, imageMap: Map<string, string>): Promise<string> {
-    let updatedHtml = html;
-
-    // logger.debug(`replaceImageUrls: before process - HTML: ${html}`);
-    // logger.debug(`replaceImageUrls: before process - imageMap: ${JSON.stringify(Array.from(imageMap.entries()))}`);
-    for (const [placeholder, wpUrl] of imageMap.entries()) {
-      const regex = new RegExp(placeholder, 'g');
-      updatedHtml = updatedHtml.replace(regex, wpUrl);
-    }
-    // logger.debug(`replaceImageUrls: after process - updatedHTML: ${updatedHtml}`);
-    logger.debug(`imageProcessor - replaced ${imageMap.size} image URLs in HTML`);
-    return updatedHtml;
   }
 
   /**

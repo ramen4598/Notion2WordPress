@@ -37,7 +37,7 @@ sequenceDiagram
         else No images
             Orchestrator->>Orchestrator: continue without uploads
         end
-        Orchestrator->>WP: replaceImageUrls(html, map)
+        Orchestrator->>ImageProcessor: processHtmlImages(page, html)
         WP-->>Orchestrator: renderedHtml
         Orchestrator->>WP: createDraftPost(title, renderedHtml, draft)
         WP-->>Orchestrator: postId

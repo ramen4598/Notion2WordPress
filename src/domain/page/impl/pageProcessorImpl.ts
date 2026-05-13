@@ -1,8 +1,7 @@
 import type { IPageProcessor } from '../interface/pageProcessor.js';
 import type { Job } from '../../job/interface/jobProcessor.js';
 import type { PageError, Page } from '../../page/interface/pageProcessor.js';
-import type { ImageReference, NotionPage } from '../../notion/interface/notion.js';
-import type { Placeholder2WpUrlMap } from '../../image/interface/imageProcessor.js';
+import type { NotionPage } from '../../notion/interface/notion.js';
 import { PageException } from '../error/page.error.js';
 import { NotionPageStatus as NPStatus } from '../../notion/enum/notion.enums.js';
 import { JobStatus, PageStatus } from '../../db/enum/db.enums.js';
@@ -123,8 +122,8 @@ export class PageProcessor implements IPageProcessor {
 
   private async syncPageWithRollback(page: Page, nPage: NotionPage): Promise<void> {
     try {
-      const { html, images } = await this.getHtmlAndImage(nPage.id);
-      const finalHtml = await this.uploadImages(page, html, images);
+      const html = await this.getHtml(nPage.id);
+      const finalHtml = await this.processHtmlImages(page, html);
       await this.createPost(page, nPage.title, finalHtml);
     } catch (error: unknown) {
       await this.rollback(page, asError(error).message);
@@ -132,12 +131,10 @@ export class PageProcessor implements IPageProcessor {
     }
   }
 
-  private async getHtmlAndImage(
-    nPageId: string
-  ): Promise<{ html: string; images: ImageReference[] }> {
-    const { html, images } = await this.getHtmlAndImageFromNotion(nPageId);
+  private async getHtml(nPageId: string): Promise<string> {
+    const html = await this.getHtmlFromNotion(nPageId);
     await this.updateNotionPageStatusToDone(nPageId);
-    return { html, images };
+    return html;
   }
 
   private async updateNotionPageStatusToDone(notionPageId: string): Promise<void> {
@@ -148,20 +145,18 @@ export class PageProcessor implements IPageProcessor {
     }
   }
 
-  private async getHtmlAndImageFromNotion(
-    nPageId: string
-  ): Promise<{ html: string; images: ImageReference[] }> {
+  private async getHtmlFromNotion(nPageId: string): Promise<string> {
     try {
-      return await notion.getPageHtmlAndImage(nPageId);
+      const html = await notion.getPageHtml(nPageId);
+      return html;
     } catch (error: unknown) {
       throw new PageException(`Failed to get HTML for Notion page ${nPageId}`, error);
     }
   }
 
-  private async uploadImages(page: Page, html: string, images: ImageReference[]): Promise<string> {
+  private async processHtmlImages(page: Page, html: string): Promise<string> {
     try {
-      const imageMap: Placeholder2WpUrlMap = await imageProcessor.syncImages(page, images);
-      return await imageProcessor.replaceImageUrls(html, imageMap);
+      return await imageProcessor.processHtmlImages(page, html);
     } catch (error: unknown) {
       throw new PageException(
         `Failed to upload images for Notion page ${page.notionPageId}`,

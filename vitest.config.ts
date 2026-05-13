@@ -5,11 +5,12 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     setupFiles: ['tests/setup.ts'],
-    exclude: ['node_modules/**', 'dist/**', 'tmp/**', 'specs/**'],
+    exclude: ['node_modules/**', 'dist/**', 'tmp/**', 'specs/**', '.worktree/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
+        '.worktree/',
         'node_modules/',
         'dist/',
         'tests/',

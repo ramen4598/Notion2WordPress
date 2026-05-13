@@ -20,18 +20,6 @@ export interface QueryPagesOptions {
   statusFilter?: NotionPageStatus;
 }
 
-export interface ImageReference {
-  blockId: string;
-  url: string;
-  altText?: string;
-  placeholder: string;
-}
-
-export interface GetPageHtmlAndImageResponse {
-  html: string;
-  images: ImageReference[];
-}
-
 export interface UpdatePageStatusResponse {
   success: boolean;
   updatedTime: string;
@@ -48,12 +36,12 @@ export interface INotion {
   queryPages(options: QueryPagesOptions): Promise<NotionPage[]>;
 
   /**
-   * Get the HTML content and associated images of a Notion page
+   * Get the HTML content of a Notion page.
    * @param pageId - The ID of the Notion page to retrieve.
-   * @returns A promise that resolves to an object containing HTML content and image references.
+   * @returns A promise that resolves to HTML content.
    * @throws NotionException if the retrieval fails after retries.
    */
-  getPageHtmlAndImage(pageId: string): Promise<GetPageHtmlAndImageResponse>;
+  getPageHtml(pageId: string): Promise<string>;
   
   /**
    * Update the status property of a Notion page.

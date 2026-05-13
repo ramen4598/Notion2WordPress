@@ -7,16 +7,17 @@ export const mdBlockTextOnly = [
     parent: 'Text Only',
     children: [],
   },
-];
+] as const;
 
 export const mdBlockSingleImage = [
   {
     type: 'image',
     blockId: '2f8a3a2b-1013-80c6-9688-fedd0614bf2d',
-    parent: '![img1.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
+    parent:
+      '![img1.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
     children: [],
   },
-];
+] as const;
 
 export const mdBlockMultiImageSameLevel = [
   {
@@ -32,7 +33,8 @@ export const mdBlockMultiImageSameLevel = [
           {
             type: 'image',
             blockId: '2f8a3a2b-1013-80a3-85e1-d5bcb41cb778',
-            parent: '![img1](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
+            parent:
+              '![img1](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
             children: [],
           },
         ],
@@ -45,14 +47,15 @@ export const mdBlockMultiImageSameLevel = [
           {
             type: 'image',
             blockId: '2f8a3a2b-1013-8044-ba1f-e59dfa09ffe4',
-            parent: '![img2](https://prod-files-secure.s3.us-west-2.amazonaws.com/img2.png)',
+            parent:
+              '![img2](https://prod-files-secure.s3.us-west-2.amazonaws.com/img2.png)',
             children: [],
           },
         ],
       },
     ],
   },
-];
+] as const;
 
 export const mdBlockImageNestedInChildren = [
   {
@@ -63,7 +66,8 @@ export const mdBlockImageNestedInChildren = [
       {
         type: 'image',
         blockId: '2f8a3a2b-1013-808a-9498-e59ed6dff209',
-        parent: '![img1](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
+        parent:
+          '![img1](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
         children: [],
       },
     ],
@@ -76,12 +80,13 @@ export const mdBlockImageNestedInChildren = [
       {
         type: 'image',
         blockId: '2f8a3a2b-1013-8050-b0ea-dc1fe2dac338',
-        parent: '![img2](https://prod-files-secure.s3.us-west-2.amazonaws.com/img2.png)',
+        parent:
+          '![img2](https://prod-files-secure.s3.us-west-2.amazonaws.com/img2.png)',
         children: [],
       },
     ],
   },
-];
+] as const;
 
 export const mdBlockCalloutNoChildren = [
   {
@@ -90,7 +95,7 @@ export const mdBlockCalloutNoChildren = [
     parent: '> 💡 just parent no children',
     children: [],
   },
-];
+] as const;
 
 export const mdBlockCalloutWithChildren = [
   {
@@ -108,28 +113,31 @@ export const mdBlockCalloutWithChildren = [
       {
         type: 'image',
         blockId: '2f8a3a2b-1013-806c-829f-fc10ac1b30bd',
-        parent: '![img1](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
+        parent:
+          '![img1](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
         children: [],
       },
     ],
   },
-];
+] as const;
 
 export const mdBlockCalloutWithImageMarkdownInParent = [
   {
     type: 'callout',
     blockId: '2f8a3a2b-1013-8039-83db-eaefed36d71f',
-    parent: '> 💡 ![img1.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
+    parent:
+      '> 💡 ![img1.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
     children: [
       {
         type: 'image',
         blockId: '2f8a3a2b-1013-80f2-a19c-ccbdc84bfa85',
-        parent: '![img1.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
+        parent:
+          '![img1.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/img1.png)',
         children: [],
       },
     ],
   },
-];
+] as const;
 
 export const mdBlockCalloutNested = [
   {
@@ -181,4 +189,4 @@ export const mdBlockCalloutNested = [
     parent: '',
     children: [],
   },
-];
+] as const;

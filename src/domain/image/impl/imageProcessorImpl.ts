@@ -52,7 +52,7 @@ class ImageProcessor implements IImageProcessor {
       return html;
     }
 
-    const candidates = eligibleImages.map((node, index) => {
+    const candidates: HtmlImageCandidate[] = eligibleImages.map((node, index) => {
       const image = $(node);
       return {
         imageIndex: index,
@@ -90,7 +90,7 @@ class ImageProcessor implements IImageProcessor {
       );
 
       const batch = images.slice(i, i + maxConcurrent);
-      const batchResults = await Promise.allSettled(
+      const batchResults: PromiseSettledResult<HtmlImageUploadResult>[] = await Promise.allSettled(
         batch.map((image) =>
           Promise.resolve()
             .then(() =>

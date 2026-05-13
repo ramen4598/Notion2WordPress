@@ -147,7 +147,7 @@ export class PageProcessor implements IPageProcessor {
 
   private async getHtmlFromNotion(nPageId: string): Promise<string> {
     try {
-      const { html } = await notion.getPageHtml(nPageId);
+      const html = await notion.getPageHtml(nPageId);
       return html;
     } catch (error: unknown) {
       throw new PageException(`Failed to get HTML for Notion page ${nPageId}`, error);

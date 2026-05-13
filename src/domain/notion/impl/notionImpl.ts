@@ -1,4 +1,4 @@
-import type { INotion, NotionPage, QueryPagesOptions, GetPageHtmlResponse, UpdatePageStatusResponse } from '../interface/notion.js';
+import type { INotion, NotionPage, QueryPagesOptions, UpdatePageStatusResponse } from '../interface/notion.js';
 import { NotionException } from '../error/notion.error.js';
 import { NotionPageStatus } from '../enum/notion.enums.js';
 import { config } from '../../../config/config.js';
@@ -95,10 +95,10 @@ class Notion implements INotion {
    * Get the HTML content of a Notion page by its ID.
    * Converts the page content to Markdown and then to HTML.
    * @param pageId - The ID of the Notion page.
-   * @returns A promise that resolves to an object containing HTML content.
+   * @returns A promise that resolves to HTML content.
    * @throws Error if the conversion fails after retries.
    */
-  async getPageHtml(pageId: string): Promise<GetPageHtmlResponse> {
+  async getPageHtml(pageId: string): Promise<string> {
     const onRetryFn = (error: Error, attempt: number) => {
       logger.warn(`Get Notion page HTML (attempt ${attempt})`, { error: error.message });
     };
@@ -117,7 +117,7 @@ class Notion implements INotion {
       const html = marked.parse(markdownContent) as string;
 
       logger.debug(`notion - Converted page ${pageId} to HTML`);
-      return { html: html };
+      return html;
     } catch (error: unknown) {
       logger.warn(`Failed to get html for page ${pageId}`, asError(error));
       throw new NotionException(`Failed to get page ${pageId} HTML`, error);

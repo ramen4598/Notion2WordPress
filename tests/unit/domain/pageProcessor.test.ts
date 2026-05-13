@@ -76,7 +76,7 @@ describe('PageProcessor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createPageMock.mockReturnValue(101);
-    getPageHtmlMock.mockResolvedValue({ html: '<p>raw html</p>' });
+    getPageHtmlMock.mockResolvedValue('<p>raw html</p>');
     updatePageStatusMock.mockResolvedValue({ success: true, updatedTime: '2026-05-13T00:00:00Z' });
     processHtmlImagesMock.mockResolvedValue('<p>final html</p>');
     createPostMock.mockResolvedValue({

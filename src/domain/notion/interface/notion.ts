@@ -20,10 +20,6 @@ export interface QueryPagesOptions {
   statusFilter?: NotionPageStatus;
 }
 
-export interface GetPageHtmlResponse {
-  html: string;
-}
-
 export interface UpdatePageStatusResponse {
   success: boolean;
   updatedTime: string;
@@ -42,10 +38,10 @@ export interface INotion {
   /**
    * Get the HTML content of a Notion page.
    * @param pageId - The ID of the Notion page to retrieve.
-   * @returns A promise that resolves to an object containing HTML content.
+   * @returns A promise that resolves to HTML content.
    * @throws NotionException if the retrieval fails after retries.
    */
-  getPageHtml(pageId: string): Promise<GetPageHtmlResponse>;
+  getPageHtml(pageId: string): Promise<string>;
   
   /**
    * Update the status property of a Notion page.

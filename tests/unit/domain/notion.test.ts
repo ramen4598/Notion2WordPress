@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { mdBlockCalloutWithImageMarkdownInParent } from '../../helpers/dummyMdBlock.js';
+
 const { pageToMarkdownMock, toMarkdownStringMock } = vi.hoisted(() => ({
   pageToMarkdownMock: vi.fn(),
   toMarkdownStringMock: vi.fn(),
@@ -59,8 +61,7 @@ describe('Notion', () => {
   it('getPageHtml returns HTML only while preserving image URLs and normalized callouts', async () => {
     pageToMarkdownMock.mockResolvedValue([
       {
-        type: 'callout',
-        blockId: 'callout-1',
+        ...mdBlockCalloutWithImageMarkdownInParent[0],
         parent: 'Heads up ![icon](https://example.com/icon.png)',
         children: [
           {
@@ -82,10 +83,10 @@ describe('Notion', () => {
     const notion = await loadNotion();
     const response = await notion.getPageHtml('page-1');
 
-    expect(response).toEqual({ html: expect.any(String) });
-    expect(response.html).toContain('<p>Heads up </p>');
-    expect(response.html).toContain('<p>Nested detail</p>');
-    expect(response.html).toContain('src="https://example.com/hero.png"');
-    expect(response.html).not.toContain('image-image-1');
+    expect(response).toEqual(expect.any(String));
+    expect(response).toContain('<p>Heads up </p>');
+    expect(response).toContain('<p>Nested detail</p>');
+    expect(response).toContain('src="https://example.com/hero.png"');
+    expect(response).not.toContain('image-image-1');
   });
 });

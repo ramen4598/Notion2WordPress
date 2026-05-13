@@ -70,6 +70,17 @@ function createPage(): Page {
   };
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+}
+
 describe('imageProcessor.processHtmlImages', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -86,15 +97,34 @@ describe('imageProcessor.processHtmlImages', () => {
     });
   });
 
-  it('rewrites a single img src and records rollback media ids', async () => {
+  it('rewrites an image src within an HTML fragment and records rollback media ids', async () => {
     const imageProcessor = await loadImageProcessor();
     const page = createPage();
-    const html = '<p><img src="https://cdn.local/a.png" alt="hero"></p>';
+    const html = '<p>Lead</p><img src="https://cdn.local/a.png" alt="hero"><p>Tail</p>';
 
     const result = await imageProcessor.processHtmlImages(page, html);
 
-    expect(result).toBe('<html><head></head><body><p><img src="https://wp.local/photo.png" alt="hero"></p></body></html>');
+    expect(result).toBe(
+      '<p>Lead</p><img src="https://wp.local/photo.png" alt="hero"><p>Tail</p>'
+    );
     expect(page.uploadedMediaIds).toEqual([55]);
+  });
+
+  it('uses page-local temporary notion block ids for html image assets', async () => {
+    const imageProcessor = await loadImageProcessor();
+    const page = createPage();
+    const html = '<p><img src="https://cdn.local/a.png"><img src="https://cdn.local/b.png"></p>';
+
+    await imageProcessor.processHtmlImages(page, html);
+
+    expect(createImageAssetMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ notion_block_id: 'np-1#image-1' })
+    );
+    expect(createImageAssetMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ notion_block_id: 'np-1#image-2' })
+    );
   });
 
   it('leaves excluded selector matches unchanged', async () => {
@@ -139,5 +169,88 @@ describe('imageProcessor.processHtmlImages', () => {
     uploadMediaMock.mockRejectedValueOnce(new Error('upload failed'));
 
     await expect(imageProcessor.processHtmlImages(page, html)).rejects.toThrow(/upload failed/i);
+  });
+
+  it('aggregates image processing failures after attempting every eligible image', async () => {
+    const imageProcessor = await loadImageProcessor();
+    const page = createPage();
+    const html =
+      '<p><img src="https://cdn.local/a.png"><img src="https://cdn.local/b.png"><img src="https://cdn.local/c.png"></p>';
+
+    uploadMediaMock
+      .mockRejectedValueOnce(new Error('upload failed a'))
+      .mockResolvedValueOnce({
+        id: 55,
+        url: 'https://wp.local/photo-b.png',
+      })
+      .mockRejectedValueOnce(new Error('upload failed c'));
+
+    await expect(imageProcessor.processHtmlImages(page, html)).rejects.toThrow(/sync 2 images/i);
+
+    expect(uploadMediaMock).toHaveBeenCalledTimes(3);
+    expect(page.uploadedMediaIds).toEqual([55]);
+    expect(updateImageAssetMock).toHaveBeenCalledWith(
+      101,
+      expect.objectContaining({ status: 'failed', error_message: expect.stringMatching(/upload failed a/i) })
+    );
+    expect(updateImageAssetMock).toHaveBeenCalledWith(
+      101,
+      expect.objectContaining({ status: 'failed', error_message: expect.stringMatching(/upload failed c/i) })
+    );
+  });
+
+  it('still attempts valid html images when another eligible image has a blank src', async () => {
+    const imageProcessor = await loadImageProcessor();
+    const page = createPage();
+    const html = '<p><img src="   " alt="broken"><img src="https://cdn.local/b.png"></p>';
+
+    uploadMediaMock.mockResolvedValueOnce({
+      id: 55,
+      url: 'https://wp.local/photo-b.png',
+    });
+
+    await expect(imageProcessor.processHtmlImages(page, html)).rejects.toThrow(/sync 1 images/i);
+
+    expect(uploadMediaMock).toHaveBeenCalledTimes(1);
+    expect(page.uploadedMediaIds).toEqual([55]);
+  });
+
+  it('processes html images in batches using maxConcurrentImageDownloads', async () => {
+    const imageProcessor = await loadImageProcessor();
+    const page = createPage();
+    const html =
+      '<p><img src="https://cdn.local/a.png"><img src="https://cdn.local/b.png"><img src="https://cdn.local/c.png"></p>';
+    const first = createDeferred<{
+      id: number;
+      url: string;
+    }>();
+    const second = createDeferred<{
+      id: number;
+      url: string;
+    }>();
+
+    uploadMediaMock
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise)
+      .mockResolvedValueOnce({
+        id: 57,
+        url: 'https://wp.local/photo-c.png',
+      });
+
+    const processingPromise = imageProcessor.processHtmlImages(page, html);
+
+    await vi.waitFor(() => {
+      expect(uploadMediaMock).toHaveBeenCalledTimes(2);
+    });
+
+    first.resolve({ id: 55, url: 'https://wp.local/photo-a.png' });
+    second.resolve({ id: 56, url: 'https://wp.local/photo-b.png' });
+
+    await vi.waitFor(() => {
+      expect(uploadMediaMock).toHaveBeenCalledTimes(3);
+    });
+    await expect(processingPromise).resolves.toBe(
+      '<p><img src="https://wp.local/photo-a.png"><img src="https://wp.local/photo-b.png"><img src="https://wp.local/photo-c.png"></p>'
+    );
   });
 });

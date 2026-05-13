@@ -9,6 +9,7 @@ import { imageDownloader } from './notionImgDownloader.js';
 import { wordPress } from '../../wordPress/impl/wordPressImpl.js';
 import { db } from '../../db/impl/sqlite3.js';
 import { logger } from '../../../lib/logger.js';
+import { config } from '../../../config/config.js';
 import { asError } from '../../../lib/utils.js';
 
 type HtmlImageReference = {
@@ -17,13 +18,25 @@ type HtmlImageReference = {
   altText?: string;
 };
 
+type HtmlImageUploadResult = {
+  imageIndex: number;
+  wpUrl: string;
+};
+
+type HtmlImageCandidate = {
+  imageIndex: number;
+  src: string | undefined;
+  altText: string | undefined;
+};
+
 class ImageProcessor implements IImageProcessor {
   async processHtmlImages(
     page: Page,
     html: string,
     options?: ProcessHtmlImagesOptions
   ): Promise<string> {
-    const $ = load(html);
+    // Preserve the original post-content fragment shape instead of wrapping it as a full document.
+    const $ = load(html, null, false);
     const allImages = $('img').toArray();
 
     if (allImages.length === 0) {
@@ -39,18 +52,80 @@ class ImageProcessor implements IImageProcessor {
       return html;
     }
 
-    for (const [index, node] of eligibleImages.entries()) {
+    const candidates = eligibleImages.map((node, index) => {
       const image = $(node);
-      const source = this.createHtmlImageReference(image.attr('src'), image.attr('alt'), index);
-      const wpUrl = await this.uploadHtmlImage(page, source);
-      image.attr('src', wpUrl);
+      return {
+        imageIndex: index,
+        src: image.attr('src'),
+        altText: image.attr('alt'),
+      };
+    });
+
+    const results = await this.uploadHtmlImagesInBatches(page, candidates);
+    this.handleHtmlImageErrors(results);
+
+    for (const result of results) {
+      if (result.status !== 'fulfilled') {
+        continue;
+      }
+
+      const node = eligibleImages[result.value.imageIndex];
+      $(node).attr('src', result.value.wpUrl);
     }
 
     logger.debug(`imageProcessor - processed ${eligibleImages.length} image URLs in HTML`);
-    return $.html();
+    return $.root().html() ?? '';
+  }
+
+  private async uploadHtmlImagesInBatches(
+    page: Page,
+    images: HtmlImageCandidate[]
+  ): Promise<PromiseSettledResult<HtmlImageUploadResult>[]> {
+    const results: PromiseSettledResult<HtmlImageUploadResult>[] = [];
+    const maxConcurrent = Math.max(config.maxConcurrentImageDownloads, 1);
+
+    for (let i = 0; i < images.length; i += maxConcurrent) {
+      logger.debug(
+        `imageProcessor - Processing HTML images ${i + 1} to ${Math.min(i + maxConcurrent, images.length)} of ${images.length}`
+      );
+
+      const batch = images.slice(i, i + maxConcurrent);
+      const batchResults = await Promise.allSettled(
+        batch.map((image) =>
+          Promise.resolve()
+            .then(() =>
+              this.createHtmlImageReference(page, image.src, image.altText, image.imageIndex)
+            )
+            .then((reference) => this.uploadHtmlImage(page, reference))
+            .then((wpUrl) => ({
+              imageIndex: image.imageIndex,
+              wpUrl,
+            }))
+        )
+      );
+
+      results.push(...batchResults);
+    }
+
+    return results;
+  }
+
+  private handleHtmlImageErrors(results: PromiseSettledResult<HtmlImageUploadResult>[]): void {
+    const errors = results.filter((result) => result.status === 'rejected');
+
+    if (errors.length === 0) {
+      return;
+    }
+
+    logger.warn(`handleHtmlImageErrors - ${errors.length} HTML image sync failures`);
+    throw new ImageProcessException(
+      `Failed to sync ${errors.length} images`,
+      errors.map((result) => (result.status === 'rejected' ? asError(result.reason) : result))
+    );
   }
 
   private createHtmlImageReference(
+    page: Page,
     src: string | undefined,
     altText: string | undefined,
     index: number
@@ -62,7 +137,8 @@ class ImageProcessor implements IImageProcessor {
     }
 
     return {
-      blockId: `html-image-${index + 1}`,
+      // TODO(issue #44): replace this temporary page-local HTML image identifier with a persisted source ID.
+      blockId: `${page.notionPageId}#image-${index + 1}`,
       src: normalizedSrc,
       altText,
     };

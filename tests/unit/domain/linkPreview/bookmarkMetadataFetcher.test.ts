@@ -36,30 +36,30 @@ describe('bookmarkMetadataFetcher', () => {
     retryWithBackoffMock.mockImplementation(async (fn: () => Promise<unknown>) => await fn());
   });
 
-  it('extracts Open Graph metadata and resolves relative favicon URLs', async () => {
+  it('extracts Open Graph metadata and resolves relative favicon URLs against the target origin', async () => {
     axiosGetMock.mockResolvedValue({
       data: `<!doctype html>
         <html>
           <head>
             <meta property="og:title" content="OG Title">
             <meta property="og:description" content="OG Description">
-            <link rel="icon" href="/favicon.ico">
+            <link rel="icon" href="favicon.ico">
           </head>
         </html>`,
     });
 
     const fetcher = await loadFetcher();
-    const metadata = await fetcher.fetchMetadata('https://example.com/post');
+    const metadata = await fetcher.fetchMetadata('https://example.com/post/page');
 
     expect(metadata).toMatchObject({
-      url: 'https://example.com/post',
+      url: 'https://example.com/post/page',
       title: 'OG Title',
       description: 'OG Description',
       featuredImage: 'https://example.com/favicon.ico',
     });
     expect(metadata.fetchedAt).toEqual(expect.any(String));
     expect(axiosGetMock).toHaveBeenCalledWith(
-      'https://example.com/post',
+      'https://example.com/post/page',
       expect.objectContaining({
         timeout: 60000,
         maxRedirects: 5,

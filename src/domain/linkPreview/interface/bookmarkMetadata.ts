@@ -7,6 +7,6 @@ export interface BookmarkMetadata {
   error?: string;
 }
 
-export interface IBookmarkMetadataFetcher {
+export interface BookmarkMetadataFetcher {
   fetchMetadata(url: string): Promise<BookmarkMetadata>;
 }

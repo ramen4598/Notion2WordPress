@@ -3,9 +3,9 @@ import * as cheerio from 'cheerio';
 import { logger } from '../../../lib/logger.js';
 import { retryWithBackoff } from '../../../lib/retry.js';
 import { asError } from '../../../lib/utils.js';
-import { BookmarkMetadata, IBookmarkMetadataFetcher } from '../interface/bookmarkMetadata.js';
+import { BookmarkMetadata, BookmarkMetadataFetcher } from '../interface/bookmarkMetadata.js';
 
-class BookmarkMetadataFetcher implements IBookmarkMetadataFetcher {
+class CheerioBookmarkMetadataFetcher implements BookmarkMetadataFetcher {
   async fetchMetadata(url: string): Promise<BookmarkMetadata> {
     const fetchedAt = new Date().toISOString();
 
@@ -24,7 +24,8 @@ class BookmarkMetadataFetcher implements IBookmarkMetadataFetcher {
       const $ = cheerio.load(String(response.data ?? ''));
       const title = this.getMetaContent($, 'property', 'og:title') || $('title').first().text().trim() || url;
       const description = this.getMetaContent($, 'property', 'og:description') || undefined;
-      const image = this.getMetaContent($, 'property', 'og:image') || this.getFaviconUrl($);
+      const ogImage = this.getMetaContent($, 'property', 'og:image');
+      const favicon = ogImage ? undefined : this.getFaviconUrl($);
 
       logger.debug('bookmarkMetadataFetcher - Fetched metadata', { url, title });
 
@@ -32,7 +33,7 @@ class BookmarkMetadataFetcher implements IBookmarkMetadataFetcher {
         url,
         title,
         description,
-        featuredImage: image ? this.resolveUrl(image, url) : undefined,
+        featuredImage: ogImage ? this.resolveUrl(ogImage, url) : this.resolveFaviconUrl(favicon, url),
         fetchedAt,
       };
     } catch (error: unknown) {
@@ -65,6 +66,13 @@ class BookmarkMetadataFetcher implements IBookmarkMetadataFetcher {
   private resolveUrl(value: string, baseUrl: string): string {
     return new URL(value, baseUrl).toString();
   }
+
+  private resolveFaviconUrl(value: string | undefined, pageUrl: string): string | undefined {
+    if (!value) return undefined;
+
+    const origin = new URL(pageUrl).origin;
+    return new URL(value, `${origin}/`).toString();
+  }
 }
 
-export const bookmarkMetadataFetcher: IBookmarkMetadataFetcher = new BookmarkMetadataFetcher();
+export const bookmarkMetadataFetcher: BookmarkMetadataFetcher = new CheerioBookmarkMetadataFetcher();

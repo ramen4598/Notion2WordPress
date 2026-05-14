@@ -126,6 +126,7 @@ class CheerioBookmarkMetadataFetcher implements BookmarkMetadataFetcher {
       const response = await axios.get(currentUrl.toString(), {
         timeout: 60000,
         maxRedirects: 0,
+        proxy: false,
         httpAgent: this.httpAgent,
         httpsAgent: this.httpsAgent,
         validateStatus: (status) => status >= 200 && status < 400,

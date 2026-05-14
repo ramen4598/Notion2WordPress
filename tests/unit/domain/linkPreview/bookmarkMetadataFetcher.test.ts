@@ -71,6 +71,7 @@ describe('bookmarkMetadataFetcher', () => {
       expect.objectContaining({
         timeout: 60000,
         maxRedirects: 0,
+        proxy: false,
         httpAgent: expect.any(Object),
         httpsAgent: expect.any(Object),
         headers: expect.objectContaining({

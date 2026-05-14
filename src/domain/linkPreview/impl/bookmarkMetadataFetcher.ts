@@ -181,6 +181,8 @@ class CheerioBookmarkMetadataFetcher implements BookmarkMetadataFetcher {
     const normalizedAddress = address.toLowerCase().split('%')[0];
     const mappedIpv4 = normalizedAddress.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
     if (mappedIpv4) return this.isBlockedIpv4Address(mappedIpv4[1]);
+    const mappedIpv4Hex = normalizedAddress.match(/^(?:::ffff:|0:0:0:0:0:ffff:)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+    if (mappedIpv4Hex) return this.isBlockedMappedIpv4HexAddress(mappedIpv4Hex[1], mappedIpv4Hex[2]);
     if (normalizedAddress === '::' || normalizedAddress === '::1') return true;
 
     const hextets = normalizedAddress.split(':');
@@ -193,6 +195,14 @@ class CheerioBookmarkMetadataFetcher implements BookmarkMetadataFetcher {
       (first & 0xff00) === 0xff00 ||
       (first === 0x2001 && second === 0x0db8)
     );
+  }
+
+  private isBlockedMappedIpv4HexAddress(high: string, low: string): boolean {
+    const highBits = Number.parseInt(high, 16);
+    const lowBits = Number.parseInt(low, 16);
+    const ipv4Address = [highBits >> 8, highBits & 0xff, lowBits >> 8, lowBits & 0xff].join('.');
+
+    return this.isBlockedIpv4Address(ipv4Address);
   }
 }
 

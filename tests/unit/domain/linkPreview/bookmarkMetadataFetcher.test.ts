@@ -163,6 +163,41 @@ describe('bookmarkMetadataFetcher', () => {
     expect(axiosGetMock).not.toHaveBeenCalled();
   });
 
+  it('returns URL-only fallback metadata without fetching IPv4-mapped IPv6 loopback literals', async () => {
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('http://[::ffff:127.0.0.1]/');
+
+    expect(metadata).toMatchObject({
+      url: 'http://[::ffff:127.0.0.1]/',
+      title: 'http://[::ffff:127.0.0.1]/',
+      description: undefined,
+      featuredImage: undefined,
+    });
+    expect(metadata.error).toContain('Blocked internal address');
+    expect(axiosGetMock).not.toHaveBeenCalled();
+  });
+
+  it('returns URL-only fallback metadata without following manual redirects to unsafe targets', async () => {
+    axiosGetMock.mockResolvedValue({
+      status: 302,
+      headers: { location: 'http://127.0.0.1/private' },
+      data: '',
+    });
+
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('https://example.com/post');
+
+    expect(metadata).toMatchObject({
+      url: 'https://example.com/post',
+      title: 'https://example.com/post',
+      description: undefined,
+      featuredImage: undefined,
+    });
+    expect(metadata.error).toContain('Blocked internal address');
+    expect(axiosGetMock).toHaveBeenCalledTimes(1);
+    expect(axiosGetMock).toHaveBeenCalledWith('https://example.com/post', expect.any(Object));
+  });
+
   it('blocks unsafe redirect targets before following redirects', async () => {
     axiosGetMock.mockResolvedValue({ status: 200, headers: {}, data: '<html></html>' });
 

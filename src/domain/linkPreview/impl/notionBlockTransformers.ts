@@ -55,11 +55,32 @@ function fallbackMetadata(url: string): BookmarkMetadata {
   };
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function safeHref(url: string): string {
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:' ? url : '#';
+  } catch {
+    return '#';
+  }
+}
+
 function renderFallbackBookmark(url: string): string {
   try {
     return renderBookmarkHTML(fallbackMetadata(url));
   } catch {
-    return `<!-- wp:html -->\n<figure class="bookmark-card"><a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a></figure>\n<!-- /wp:html -->`;
+    const escapedHref = escapeHtml(safeHref(url));
+    const escapedText = escapeHtml(url);
+
+    return `<!-- wp:html -->\n<figure class="bookmark-card"><a href="${escapedHref}" target="_blank" rel="noopener noreferrer">${escapedText}</a></figure>\n<!-- /wp:html -->`;
   }
 }
 

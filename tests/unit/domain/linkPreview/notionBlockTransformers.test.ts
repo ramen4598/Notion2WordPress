@@ -198,6 +198,27 @@ describe('registerLinkPreviewTransformers', () => {
     ).resolves.toContain('href="https://example.com/template-failure"');
   });
 
+  it('escapes malicious URLs in raw fallback when bookmark template rendering fails', async () => {
+    const maliciousUrl = 'https://example.com/"><script>bad</script>';
+    fetchMetadataMock.mockResolvedValue({
+      url: maliciousUrl,
+      title: 'Malicious URL',
+      fetchedAt: '2026-05-14T00:00:00.000Z',
+    });
+    renderBookmarkHTMLMock.mockImplementation(() => {
+      throw new Error('render failed');
+    });
+
+    const result = await n2m.transformers.get('bookmark')?.({
+      bookmark: { url: maliciousUrl },
+    });
+
+    expect(result).not.toContain('<script>bad</script>');
+    expect(result).not.toContain('href="https://example.com/"><script>');
+    expect(result).toContain('href="https://example.com/&quot;&gt;&lt;script&gt;bad&lt;/script&gt;"');
+    expect(result).toContain('https://example.com/&quot;&gt;&lt;script&gt;bad&lt;/script&gt;');
+  });
+
   it('returns a URL-only bookmark card fallback when YouTube embed rendering fails', async () => {
     renderYouTubeEmbedHTMLMock.mockImplementation(() => {
       throw new Error('youtube render failed');

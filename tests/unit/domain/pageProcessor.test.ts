@@ -123,7 +123,8 @@ describe('PageProcessor', () => {
         notionPageId: 'notion-page-1',
         uploadedMediaIds: [],
       }),
-      '<p>raw html</p>'
+      '<p>raw html</p>',
+      { excludeSelectors: ['.bookmark-card img'] }
     );
     expect(createPostMock).toHaveBeenCalledWith({
       title: 'Page title',

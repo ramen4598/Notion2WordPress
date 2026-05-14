@@ -177,10 +177,10 @@ describe('bookmarkMetadataFetcher', () => {
     expect(axiosGetMock).not.toHaveBeenCalled();
   });
 
-  it('returns URL-only fallback metadata without following manual redirects to unsafe targets', async () => {
+  it('returns URL-only fallback metadata without following manual redirects to localhost targets', async () => {
     axiosGetMock.mockResolvedValue({
       status: 302,
-      headers: { location: 'http://127.0.0.1/private' },
+      headers: { location: 'http://localhost/private' },
       data: '',
     });
 
@@ -193,9 +193,12 @@ describe('bookmarkMetadataFetcher', () => {
       description: undefined,
       featuredImage: undefined,
     });
-    expect(metadata.error).toContain('Blocked internal address');
+    expect(metadata.error).toContain('Blocked local hostname');
     expect(axiosGetMock).toHaveBeenCalledTimes(1);
-    expect(axiosGetMock).toHaveBeenCalledWith('https://example.com/post', expect.any(Object));
+    expect(axiosGetMock).toHaveBeenCalledWith(
+      'https://example.com/post',
+      expect.objectContaining({ maxRedirects: 0 })
+    );
   });
 
   it('blocks unsafe redirect targets before following redirects', async () => {

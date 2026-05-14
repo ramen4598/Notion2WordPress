@@ -180,4 +180,44 @@ describe('registerLinkPreviewTransformers', () => {
       fetchedAt: expect.any(String),
     });
   });
+
+  it('returns a URL-only bookmark card fallback when bookmark template rendering fails', async () => {
+    fetchMetadataMock.mockResolvedValue({
+      url: 'https://example.com/template-failure',
+      title: 'Template failure',
+      fetchedAt: '2026-05-14T00:00:00.000Z',
+    });
+    renderBookmarkHTMLMock.mockImplementation(() => {
+      throw new Error('render failed');
+    });
+
+    await expect(
+      n2m.transformers.get('bookmark')?.({
+        bookmark: { url: 'https://example.com/template-failure' },
+      })
+    ).resolves.toContain('href="https://example.com/template-failure"');
+  });
+
+  it('returns a URL-only bookmark card fallback when YouTube embed rendering fails', async () => {
+    renderYouTubeEmbedHTMLMock.mockImplementation(() => {
+      throw new Error('youtube render failed');
+    });
+    renderBookmarkHTMLMock.mockReturnValue('<bookmark-card>youtube fallback</bookmark-card>');
+
+    await expect(
+      n2m.transformers.get('embed')?.({
+        embed: {
+          url: 'https://youtu.be/dQw4w9WgXcQ',
+          caption: [{ plain_text: 'Video title' }],
+        },
+      })
+    ).resolves.toBe('<bookmark-card>youtube fallback</bookmark-card>');
+
+    expect(fetchMetadataMock).not.toHaveBeenCalled();
+    expect(renderBookmarkHTMLMock).toHaveBeenCalledWith({
+      url: 'https://youtu.be/dQw4w9WgXcQ',
+      title: 'https://youtu.be/dQw4w9WgXcQ',
+      fetchedAt: expect.any(String),
+    });
+  });
 });

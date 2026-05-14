@@ -91,7 +91,13 @@ async function transformEmbed(block: unknown): TransformerResult {
   const url = data ? getString(data.url) : undefined;
   if (!url || !data) return false;
 
-  const youtubeHtml = renderYouTubeEmbedHTML(url, getCaption(data));
+  let youtubeHtml: string | undefined;
+  try {
+    youtubeHtml = renderYouTubeEmbedHTML(url, getCaption(data));
+  } catch {
+    return renderFallbackBookmark(url);
+  }
+
   return youtubeHtml ?? (await renderBookmarkCard(url));
 }
 
@@ -102,7 +108,13 @@ async function transformVideo(block: unknown): TransformerResult {
   const url = getExternalVideoUrl(data);
   if (!url) return false;
 
-  const youtubeHtml = renderYouTubeEmbedHTML(url, getCaption(data));
+  let youtubeHtml: string | undefined;
+  try {
+    youtubeHtml = renderYouTubeEmbedHTML(url, getCaption(data));
+  } catch {
+    return renderFallbackBookmark(url);
+  }
+
   return youtubeHtml ?? (await renderBookmarkCard(url));
 }
 

@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { mdBlockCalloutWithImageMarkdownInParent } from '../../helpers/dummyMdBlock.js';
 
-const { pageToMarkdownMock, toMarkdownStringMock } = vi.hoisted(() => ({
+const { pageToMarkdownMock, toMarkdownStringMock, setCustomTransformerMock } = vi.hoisted(() => ({
   pageToMarkdownMock: vi.fn(),
   toMarkdownStringMock: vi.fn(),
+  setCustomTransformerMock: vi.fn(),
 }));
 
 vi.mock('@notionhq/client', () => ({
@@ -15,6 +16,7 @@ vi.mock('notion-to-md', () => ({
   NotionToMarkdown: class {
     pageToMarkdown = pageToMarkdownMock;
     toMarkdownString = toMarkdownStringMock;
+    setCustomTransformer = setCustomTransformerMock;
   },
 }));
 
@@ -88,5 +90,34 @@ describe('Notion', () => {
     expect(response).toContain('<p>Nested detail</p>');
     expect(response).toContain('src="https://example.com/hero.png"');
     expect(response).not.toContain('image-image-1');
+  });
+
+  it('registers link preview custom transformers on construction', async () => {
+    await loadNotion();
+
+    expect(setCustomTransformerMock).toHaveBeenCalledWith('bookmark', expect.any(Function));
+    expect(setCustomTransformerMock).toHaveBeenCalledWith('link_preview', expect.any(Function));
+    expect(setCustomTransformerMock).toHaveBeenCalledWith('embed', expect.any(Function));
+    expect(setCustomTransformerMock).toHaveBeenCalledWith('video', expect.any(Function));
+    expect(setCustomTransformerMock).not.toHaveBeenCalledWith('paragraph', expect.any(Function));
+  });
+
+  it('preserves custom transformer raw HTML when converting markdown to HTML', async () => {
+    pageToMarkdownMock.mockResolvedValue([
+      {
+        type: 'bookmark',
+        blockId: 'bookmark-1',
+        parent:
+          '<!-- wp:html -->\n<figure class="bookmark-card"><a href="https://example.com">Example</a></figure>\n<!-- /wp:html -->',
+        children: [],
+      },
+    ]);
+
+    const notion = await loadNotion();
+    const response = await notion.getPageHtml('page-1');
+
+    expect(response).toContain('<!-- wp:html -->');
+    expect(response).toContain('<figure class="bookmark-card">');
+    expect(response).toContain('href="https://example.com"');
   });
 });

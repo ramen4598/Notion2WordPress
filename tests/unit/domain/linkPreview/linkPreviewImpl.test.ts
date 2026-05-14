@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { linkPreview } from '../../../../src/domain/linkPreview/impl/linkPreviewImpl.js';
-import { linkPreviewTransformer } from '../../../../src/domain/linkPreview/impl/linkPreviewTransformerImpl.js';
+import { registerLinkPreviewTransformers } from '../../../../src/domain/linkPreview/lib/linkPreviewTransformer.js';
 
-vi.mock('../../../../src/domain/linkPreview/impl/linkPreviewTransformerImpl.js', () => ({
-  linkPreviewTransformer: {
-    registerTransformers: vi.fn(),
-  },
+vi.mock('../../../../src/domain/linkPreview/lib/linkPreviewTransformer.js', () => ({
+  registerLinkPreviewTransformers: vi.fn(),
 }));
 
 describe('linkPreview', () => {
@@ -19,6 +17,6 @@ describe('linkPreview', () => {
 
     linkPreview.registerTransformers(n2m as never);
 
-    expect(linkPreviewTransformer.registerTransformers).toHaveBeenCalledWith(n2m);
+    expect(registerLinkPreviewTransformers).toHaveBeenCalledWith(n2m);
   });
 });

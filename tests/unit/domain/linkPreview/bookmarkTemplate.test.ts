@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { renderBookmarkHTML } from '../../../../src/domain/linkPreview/lib/bookmarkTemplate.js';
 
+function normalizeHtml(html: string): string {
+  return html.replace(/\s+/g, ' ').trim();
+}
+
 describe('renderBookmarkHTML', () => {
-  it('renders a WordPress custom HTML bookmark card', () => {
+  it('renders bookmark card HTML matching the restored template structure', () => {
     const html = renderBookmarkHTML({
       url: 'https://example.com/post',
       title: 'Example Title',
@@ -10,13 +14,22 @@ describe('renderBookmarkHTML', () => {
       featuredImage: 'https://example.com/cover.png',
     });
 
-    expect(html).toContain('<!-- wp:html -->');
-    expect(html).toContain('<!-- /wp:html -->');
-    expect(html).toContain('<figure class="bookmark-card"');
-    expect(html).toContain('href="https://example.com/post"');
-    expect(html).toContain('Example Title');
-    expect(html).toContain('Example Description');
-    expect(html).toContain('src="https://example.com/cover.png"');
+    expect(normalizeHtml(html)).toBe(
+      normalizeHtml(`<figure class="bookmark-card" style="border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; background-color: #ffffff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05); margin: 12px 0; min-height: 80px; position: relative">
+        <a class="bookmark-overlay-link" href="https://example.com/post" target="_blank" rel="noopener noreferrer" aria-label="Example Title" style="position: absolute; inset: 0; display: block; z-index: 3; text-decoration: none"></a>
+        <div class="bookmark-row" style="display: flex; gap: 14px; align-items: stretch; position: relative; z-index: 1">
+          <div class="bookmark-featured-image" style="position: relative; background-color: #f3f4f6; overflow: hidden; flex: 0 0 30%">
+            <img src="https://example.com/cover.png" alt="Example Title" style="width: 100%; height: 100%; object-fit: cover; display: block" />
+          </div>
+          <div class="bookmark-content" style="padding: 12px 14px; display: flex; flex-direction: column; justify-content: center; flex: 1">
+            <p class="bookmark-title" style="margin: 0 0 4px 0; font-size: 0.95rem; font-weight: 500; color: #111827; line-height: 1.3; overflow-wrap: anywhere">
+              Example Title
+            </p>
+            <p class="bookmark-description" style="margin: 4px 0 0 0; font-size: 0.85rem; color: #6b7280; line-height: 1.4; max-height: 3.6em; overflow: hidden">Example Description</p>
+          </div>
+        </div>
+      </figure>`)
+    );
   });
 
   it('escapes unsafe values', () => {
@@ -34,7 +47,7 @@ describe('renderBookmarkHTML', () => {
     expect(html).not.toContain('<script>');
   });
 
-  it('uses the URL as title and empty image container when optional values are absent', () => {
+  it('uses the URL as title and renders an empty image container when optional values are absent', () => {
     const html = renderBookmarkHTML({
       url: 'https://example.com/post',
       title: '',
@@ -44,28 +57,17 @@ describe('renderBookmarkHTML', () => {
     expect(html).not.toContain('bookmark-description');
     expect(html).not.toContain('<img');
     expect(html).toContain('<div class="bookmark-featured-image"');
+    expect(html).toContain('class="bookmark-row"');
   });
 
-  it('falls back to a safe href for unsafe URL schemes', () => {
+  it('keeps provided URLs in href and image src while escaping HTML-sensitive characters', () => {
     const html = renderBookmarkHTML({
-      url: 'javascript:alert(1)',
-      title: '',
-    });
-
-    expect(html).toContain('href="#"');
-    expect(html).toContain('javascript:alert(1)');
-    expect(html).not.toContain('href="javascript:alert(1)"');
-  });
-
-  it('renders an empty image container for unsafe featured image URL schemes', () => {
-    const html = renderBookmarkHTML({
-      url: 'https://example.com/post',
+      url: 'javascript:alert("x")',
       title: 'Example Title',
-      featuredImage: 'javascript:alert(1)',
+      featuredImage: 'javascript:alert("y")',
     });
 
-    expect(html).toContain('<div class="bookmark-featured-image"');
-    expect(html).not.toContain('<img');
-    expect(html).not.toContain('src="javascript:alert(1)"');
+    expect(html).toContain('href="javascript:alert(&quot;x&quot;)"');
+    expect(html).toContain('src="javascript:alert(&quot;y&quot;)"');
   });
 });

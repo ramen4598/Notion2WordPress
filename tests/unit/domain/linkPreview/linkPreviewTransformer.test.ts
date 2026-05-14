@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { linkPreviewTransformer } from '../../../../src/domain/linkPreview/impl/linkPreviewTransformerImpl.js';
 import { linkPreviewMetadataFetcher } from '../../../../src/domain/linkPreview/impl/linkPreviewMetadataFetcherImpl.js';
 import { renderBookmarkHTML } from '../../../../src/domain/linkPreview/lib/bookmarkTemplate.js';
+import { registerLinkPreviewTransformers } from '../../../../src/domain/linkPreview/lib/linkPreviewTransformer.js';
 import { renderYouTubeEmbedHTML } from '../../../../src/domain/linkPreview/lib/youtubeEmbed.js';
 
 vi.mock('../../../../src/domain/linkPreview/impl/linkPreviewMetadataFetcherImpl.js', () => ({
@@ -33,13 +33,13 @@ const fetchMetadataMock = vi.mocked(linkPreviewMetadataFetcher.fetchMetadata);
 const renderBookmarkHTMLMock = vi.mocked(renderBookmarkHTML);
 const renderYouTubeEmbedHTMLMock = vi.mocked(renderYouTubeEmbedHTML);
 
-describe('linkPreviewTransformer', () => {
+describe('registerLinkPreviewTransformers', () => {
   let n2m: FakeNotionToMarkdown;
 
   beforeEach(() => {
     vi.clearAllMocks();
     n2m = new FakeNotionToMarkdown();
-    linkPreviewTransformer.registerTransformers(n2m as never);
+    registerLinkPreviewTransformers(n2m as never);
   });
 
   it('registers only link preview block types', () => {
@@ -59,7 +59,7 @@ describe('linkPreviewTransformer', () => {
       n2m.transformers.get('bookmark')?.({
         bookmark: { url: 'https://example.com/bookmark' },
       })
-    ).resolves.toBe('<bookmark-card>Example bookmark</bookmark-card>');
+    ).resolves.toBe('<!-- wp:html -->\n<bookmark-card>Example bookmark</bookmark-card>\n<!-- /wp:html -->');
 
     expect(fetchMetadataMock).toHaveBeenCalledWith('https://example.com/bookmark');
     expect(renderBookmarkHTMLMock).toHaveBeenCalledWith({
@@ -81,7 +81,9 @@ describe('linkPreviewTransformer', () => {
       n2m.transformers.get('link_preview')?.({
         link_preview: { url: 'https://example.com/link-preview' },
       })
-    ).resolves.toBe('<bookmark-card>Example link preview</bookmark-card>');
+    ).resolves.toBe(
+      '<!-- wp:html -->\n<bookmark-card>Example link preview</bookmark-card>\n<!-- /wp:html -->'
+    );
 
     expect(fetchMetadataMock).toHaveBeenCalledWith('https://example.com/link-preview');
   });
@@ -102,7 +104,7 @@ describe('linkPreviewTransformer', () => {
           caption: [{ plain_text: 'Embedded page' }],
         },
       })
-    ).resolves.toBe('<bookmark-card>Example embed</bookmark-card>');
+    ).resolves.toBe('<!-- wp:html -->\n<bookmark-card>Example embed</bookmark-card>\n<!-- /wp:html -->');
 
     expect(renderYouTubeEmbedHTMLMock).toHaveBeenCalledWith('https://example.com/embed', 'Embedded page');
     expect(fetchMetadataMock).toHaveBeenCalledWith('https://example.com/embed');
@@ -172,7 +174,7 @@ describe('linkPreviewTransformer', () => {
       n2m.transformers.get('bookmark')?.({
         bookmark: { url: 'https://example.com/fallback' },
       })
-    ).resolves.toBe('<bookmark-card>fallback</bookmark-card>');
+    ).resolves.toBe('<!-- wp:html -->\n<bookmark-card>fallback</bookmark-card>\n<!-- /wp:html -->');
 
     expect(renderBookmarkHTMLMock).toHaveBeenCalledWith({
       url: 'https://example.com/fallback',
@@ -195,7 +197,9 @@ describe('linkPreviewTransformer', () => {
       n2m.transformers.get('bookmark')?.({
         bookmark: { url: 'https://example.com/template-failure' },
       })
-    ).resolves.toContain('href="https://example.com/template-failure"');
+    ).resolves.toBe(
+      '<figure class="bookmark-card"><a href="https://example.com/template-failure" target="_blank" rel="noopener noreferrer">https://example.com/template-failure</a></figure>'
+    );
   });
 
   it('escapes malicious URLs in raw fallback when bookmark template rendering fails', async () => {
@@ -213,6 +217,7 @@ describe('linkPreviewTransformer', () => {
       bookmark: { url: maliciousUrl },
     });
 
+    expect(result).not.toContain('<!-- wp:html -->');
     expect(result).not.toContain('<script>bad</script>');
     expect(result).not.toContain('href="https://example.com/"><script>');
     expect(result).toContain('href="https://example.com/&quot;&gt;&lt;script&gt;bad&lt;/script&gt;"');
@@ -232,7 +237,7 @@ describe('linkPreviewTransformer', () => {
           caption: [{ plain_text: 'Video title' }],
         },
       })
-    ).resolves.toBe('<bookmark-card>youtube fallback</bookmark-card>');
+    ).resolves.toBe('<!-- wp:html -->\n<bookmark-card>youtube fallback</bookmark-card>\n<!-- /wp:html -->');
 
     expect(fetchMetadataMock).not.toHaveBeenCalled();
     expect(renderBookmarkHTMLMock).toHaveBeenCalledWith({

@@ -1,10 +1,10 @@
 import type { NotionToMarkdown } from 'notion-to-md';
 import type { ILinkPreview } from '../interface/linkPreview.js';
-import { linkPreviewTransformer } from './linkPreviewTransformerImpl.js';
+import { registerLinkPreviewTransformers } from '../lib/linkPreviewTransformer.js';
 
 class LinkPreview implements ILinkPreview {
   registerTransformers(n2m: NotionToMarkdown): void {
-    linkPreviewTransformer.registerTransformers(n2m);
+    registerLinkPreviewTransformers(n2m);
   }
 }
 

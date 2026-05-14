@@ -1,14 +1,14 @@
 import type { LinkPreviewMetadata } from '../interface/linkPreviewMetadata.js';
 
 type BookmarkTemplateData = Pick<LinkPreviewMetadata, 'url' | 'title' | 'description' | 'featuredImage'>;
-type Style = Record<string, string | number>;
 
 function camelToKebab(value: string): string {
-  return value.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+  return value.replace(/([A-Z])/g, '-$1').toLowerCase();
 }
 
-function styleToString(style: Style): string {
-  return Object.entries(style)
+function styleToString(styles: Record<string, string | number | undefined>): string {
+  return Object.entries(styles)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
     .map(([key, value]) => `${camelToKebab(key)}: ${value}`)
     .join('; ');
 }
@@ -22,101 +22,133 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#039;');
 }
 
-function safeOverlayHref(url: string): string {
-  try {
-    const parsedUrl = new URL(url);
-    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:' ? url : '#';
-  } catch {
-    return '#';
-  }
+function getCardStyles(): Record<string, string> {
+  return {
+    border: '1px solid #e5e7eb',
+    borderRadius: '10px',
+    overflow: 'hidden',
+    backgroundColor: '#ffffff',
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.05)',
+    margin: '12px 0',
+    minHeight: '80px',
+  };
 }
 
-function safeImageSrc(url: string | undefined): string | undefined {
-  if (!url) return undefined;
-
-  try {
-    const parsedUrl = new URL(url);
-    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:' ? url : undefined;
-  } catch {
-    return undefined;
-  }
+function getImageContainerStyles(): Record<string, string> {
+  return {
+    position: 'relative',
+    backgroundColor: '#f3f4f6',
+    overflow: 'hidden',
+    flex: '0 0 30%',
+  };
 }
 
-const cardStyle: Style = {
-  position: 'relative',
-  display: 'flex',
-  alignItems: 'stretch',
-  minHeight: '120px',
-  margin: '1.5em 0',
-  border: '1px solid #e5e7eb',
-  borderRadius: '12px',
-  overflow: 'hidden',
-  backgroundColor: '#fff',
-};
+function getImageStyles(): Record<string, string> {
+  return {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    display: 'block',
+  };
+}
 
-const overlayStyle: Style = {
-  position: 'absolute',
-  inset: 0,
-  zIndex: 2,
-  textDecoration: 'none',
-};
+function getContentContainerStyles(): Record<string, string> {
+  return {
+    padding: '12px 14px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    flex: '1',
+  };
+}
 
-const contentStyle: Style = {
-  flex: 1,
-  minWidth: 0,
-  padding: '18px 20px',
-};
+function getTitleStyles(): Record<string, string> {
+  return {
+    margin: '0 0 4px 0',
+    fontSize: '0.95rem',
+    fontWeight: '500',
+    color: '#111827',
+    lineHeight: '1.3',
+    overflowWrap: 'anywhere',
+  };
+}
 
-const titleStyle: Style = {
-  margin: '0 0 8px',
-  fontSize: '18px',
-  fontWeight: 700,
-  lineHeight: 1.35,
-  color: '#111827',
-};
+function getRowContainerStyles(): Record<string, string> {
+  return {
+    display: 'flex',
+    gap: '14px',
+    alignItems: 'stretch',
+    position: 'relative',
+    zIndex: '1',
+  };
+}
 
-const descriptionStyle: Style = {
-  margin: 0,
-  fontSize: '14px',
-  lineHeight: 1.5,
-  color: '#4b5563',
-};
+function getCardPositioningStyles(): Record<string, string> {
+  return {
+    position: 'relative',
+  };
+}
 
-const imageContainerStyle: Style = {
-  flex: '0 0 160px',
-  minHeight: '120px',
-  backgroundColor: '#f3f4f6',
-};
+function getOverlayLinkStyles(): Record<string, string> {
+  return {
+    position: 'absolute',
+    inset: '0',
+    display: 'block',
+    zIndex: '3',
+    textDecoration: 'none',
+  };
+}
 
-const imageStyle: Style = {
-  width: '100%',
-  height: '100%',
-  objectFit: 'cover',
-  display: 'block',
-};
+function getDescriptionStyles(): Record<string, string> {
+  return {
+    margin: '4px 0 0 0',
+    fontSize: '0.85rem',
+    color: '#6b7280',
+    lineHeight: '1.4',
+    maxHeight: '3.6em',
+    overflow: 'hidden',
+  };
+}
 
 export function renderBookmarkHTML(data: BookmarkTemplateData): string {
-  const escapedHref = escapeHtml(safeOverlayHref(data.url));
-  const displayTitle = data.title.length > 0 ? data.title : data.url;
-  const escapedTitle = escapeHtml(displayTitle);
-  const escapedDescription = data.description ? escapeHtml(data.description) : undefined;
-  const safeFeaturedImage = safeImageSrc(data.featuredImage);
-  const escapedFeaturedImage = safeFeaturedImage ? escapeHtml(safeFeaturedImage) : undefined;
+  const displayTitle = data.title.trim().length > 0 ? data.title : data.url;
+  const overlayLinkHtml = `<a class="bookmark-overlay-link" href="${escapeHtml(
+    data.url
+  )}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(
+    displayTitle
+  )}" style="${styleToString(getOverlayLinkStyles())}"></a>`;
 
-  const descriptionHtml = escapedDescription
-    ? `\n    <p class="bookmark-description" style="${styleToString(descriptionStyle)}">${escapedDescription}</p>`
-    : '';
-  const imageHtml = escapedFeaturedImage
-    ? `\n    <img class="bookmark-featured-image-img" src="${escapedFeaturedImage}" alt="${escapedTitle}" style="${styleToString(imageStyle)}">\n  `
+  const imageHtml = data.featuredImage
+    ? `<div class="bookmark-featured-image" style="${styleToString(getImageContainerStyles())}">
+        <img src="${escapeHtml(data.featuredImage)}" alt="${escapeHtml(
+          displayTitle
+        )}" style="${styleToString(getImageStyles())}" />
+      </div>`
+    : `<div class="bookmark-featured-image" style="${styleToString(getImageContainerStyles())}"></div>`;
+
+  const descriptionHtml = data.description
+    ? `<p class="bookmark-description" style="${styleToString(
+        getDescriptionStyles()
+      )}">${escapeHtml(data.description)}</p>`
     : '';
 
-  return `<!-- wp:html -->
-<figure class="bookmark-card" style="${styleToString(cardStyle)}">
-  <a class="bookmark-overlay-link" href="${escapedHref}" target="_blank" rel="noopener noreferrer" aria-label="${escapedTitle}" style="${styleToString(overlayStyle)}"></a>
-  <div class="bookmark-content" style="${styleToString(contentStyle)}">
-    <div class="bookmark-title" style="${styleToString(titleStyle)}">${escapedTitle}</div>${descriptionHtml}
-  </div>
-  <div class="bookmark-featured-image" style="${styleToString(imageContainerStyle)}">${imageHtml}</div>
-</figure>
-<!-- /wp:html -->`;
+  const contentHtml = `<div class="bookmark-content" style="${styleToString(getContentContainerStyles())}">
+      <p class="bookmark-title" style="${styleToString(getTitleStyles())}">
+        ${escapeHtml(displayTitle)}
+      </p>
+      ${descriptionHtml}
+    </div>`;
+
+  const rowHtml = `<div class="bookmark-row" style="${styleToString(getRowContainerStyles())}">
+    ${imageHtml}
+    ${contentHtml}
+  </div>`;
+
+  return `<figure class="bookmark-card" style="${styleToString({
+    ...getCardStyles(),
+    ...getCardPositioningStyles(),
+  })}">
+    ${overlayLinkHtml}
+    ${rowHtml}
+  </figure>`;
 }

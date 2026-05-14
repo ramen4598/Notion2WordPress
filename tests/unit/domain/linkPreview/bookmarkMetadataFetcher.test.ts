@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { axiosGetMock, retryWithBackoffMock } = vi.hoisted(() => ({
+const { axiosGetMock, dnsLookupMock, retryWithBackoffMock } = vi.hoisted(() => ({
   axiosGetMock: vi.fn(),
+  dnsLookupMock: vi.fn(),
   retryWithBackoffMock: vi.fn(async (fn: () => Promise<unknown>) => await fn()),
 }));
 
@@ -9,6 +10,10 @@ vi.mock('axios', () => ({
   default: {
     get: axiosGetMock,
   },
+}));
+
+vi.mock('node:dns/promises', () => ({
+  lookup: dnsLookupMock,
 }));
 
 vi.mock('../../../../src/lib/retry.js', () => ({
@@ -33,11 +38,14 @@ async function loadFetcher() {
 describe('bookmarkMetadataFetcher', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dnsLookupMock.mockResolvedValue([{ address: '93.184.216.34', family: 4 }]);
     retryWithBackoffMock.mockImplementation(async (fn: () => Promise<unknown>) => await fn());
   });
 
   it('extracts Open Graph metadata and resolves relative favicon URLs against the target origin', async () => {
     axiosGetMock.mockResolvedValue({
+      status: 200,
+      headers: {},
       data: `<!doctype html>
         <html>
           <head>
@@ -62,7 +70,7 @@ describe('bookmarkMetadataFetcher', () => {
       'https://example.com/post/page',
       expect.objectContaining({
         timeout: 60000,
-        maxRedirects: 5,
+        maxRedirects: 0,
         headers: expect.objectContaining({
           'User-Agent': expect.stringContaining('Notion2WordPress'),
           Accept: expect.stringContaining('text/html'),
@@ -73,6 +81,8 @@ describe('bookmarkMetadataFetcher', () => {
 
   it('uses title and og:image when available', async () => {
     axiosGetMock.mockResolvedValue({
+      status: 200,
+      headers: {},
       data: `<!doctype html>
         <html>
           <head>
@@ -106,5 +116,64 @@ describe('bookmarkMetadataFetcher', () => {
       error: 'network failed',
     });
     expect(metadata.fetchedAt).toEqual(expect.any(String));
+  });
+
+  it('returns URL-only fallback metadata without fetching unsafe URL schemes', async () => {
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('javascript:alert(1)');
+
+    expect(metadata).toMatchObject({
+      url: 'javascript:alert(1)',
+      title: 'javascript:alert(1)',
+      description: undefined,
+      featuredImage: undefined,
+    });
+    expect(metadata.error).toContain('Unsupported URL protocol');
+    expect(axiosGetMock).not.toHaveBeenCalled();
+  });
+
+  it('returns URL-only fallback metadata without fetching localhost URLs', async () => {
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('http://localhost:3000/page');
+
+    expect(metadata).toMatchObject({
+      url: 'http://localhost:3000/page',
+      title: 'http://localhost:3000/page',
+      description: undefined,
+      featuredImage: undefined,
+    });
+    expect(metadata.error).toContain('Blocked local hostname');
+    expect(axiosGetMock).not.toHaveBeenCalled();
+  });
+
+  it('returns URL-only fallback metadata without fetching hostnames that resolve to loopback addresses', async () => {
+    dnsLookupMock.mockResolvedValue([{ address: '127.0.0.1', family: 4 }]);
+
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('https://internal.example.com/page');
+
+    expect(metadata).toMatchObject({
+      url: 'https://internal.example.com/page',
+      title: 'https://internal.example.com/page',
+      description: undefined,
+      featuredImage: undefined,
+    });
+    expect(metadata.error).toContain('Blocked internal address');
+    expect(dnsLookupMock).toHaveBeenCalledWith('internal.example.com', { all: true, verbatim: false });
+    expect(axiosGetMock).not.toHaveBeenCalled();
+  });
+
+  it('blocks unsafe redirect targets before following redirects', async () => {
+    axiosGetMock.mockResolvedValue({ status: 200, headers: {}, data: '<html></html>' });
+
+    const fetcher = await loadFetcher();
+    await fetcher.fetchMetadata('https://example.com/post');
+
+    const options = axiosGetMock.mock.calls[0]?.[1];
+    expect(options?.beforeRedirect).toEqual(expect.any(Function));
+
+    expect(() => options.beforeRedirect({ protocol: 'http:', hostname: 'localhost', path: '/redirected' })).toThrow(
+      'Blocked local hostname'
+    );
   });
 });

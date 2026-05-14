@@ -56,4 +56,16 @@ describe('renderBookmarkHTML', () => {
     expect(html).toContain('javascript:alert(1)');
     expect(html).not.toContain('href="javascript:alert(1)"');
   });
+
+  it('renders an empty image container for unsafe featured image URL schemes', () => {
+    const html = renderBookmarkHTML({
+      url: 'https://example.com/post',
+      title: 'Example Title',
+      featuredImage: 'javascript:alert(1)',
+    });
+
+    expect(html).toContain('<div class="bookmark-featured-image"');
+    expect(html).not.toContain('<img');
+    expect(html).not.toContain('src="javascript:alert(1)"');
+  });
 });

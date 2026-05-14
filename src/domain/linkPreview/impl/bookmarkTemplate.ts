@@ -31,6 +31,17 @@ function safeOverlayHref(url: string): string {
   }
 }
 
+function safeImageSrc(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:' ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 const cardStyle: Style = {
   position: 'relative',
   display: 'flex',
@@ -89,7 +100,8 @@ export function renderBookmarkHTML(data: BookmarkTemplateData): string {
   const displayTitle = data.title.length > 0 ? data.title : data.url;
   const escapedTitle = escapeHtml(displayTitle);
   const escapedDescription = data.description ? escapeHtml(data.description) : undefined;
-  const escapedFeaturedImage = data.featuredImage ? escapeHtml(data.featuredImage) : undefined;
+  const safeFeaturedImage = safeImageSrc(data.featuredImage);
+  const escapedFeaturedImage = safeFeaturedImage ? escapeHtml(safeFeaturedImage) : undefined;
 
   const descriptionHtml = escapedDescription
     ? `\n    <p class="bookmark-description" style="${styleToString(descriptionStyle)}">${escapedDescription}</p>`

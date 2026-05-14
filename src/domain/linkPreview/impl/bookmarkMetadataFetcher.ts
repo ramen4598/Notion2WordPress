@@ -1,6 +1,9 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import { lookup } from 'node:dns/promises';
+import * as http from 'node:http';
+import * as https from 'node:https';
+import type { LookupAddress } from 'node:dns';
+import { lookup as dnsLookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { logger } from '../../../lib/logger.js';
 import { retryWithBackoff } from '../../../lib/retry.js';
@@ -18,7 +21,42 @@ type RedirectOptions = {
   href?: string;
 };
 
+type SafeLookupFunction = NonNullable<http.AgentOptions['lookup']>;
+
 class CheerioBookmarkMetadataFetcher implements BookmarkMetadataFetcher {
+  private readonly lookupSafeAddress: SafeLookupFunction = (hostname, options, callback) => {
+    const lookupOptions = typeof options === 'function' ? {} : options;
+    const done = typeof options === 'function' ? options : callback;
+    if (!done) throw new Error('Missing DNS lookup callback');
+    const allLookupOptions = { ...lookupOptions, all: true as const, verbatim: false };
+    const requestedAll = typeof lookupOptions === 'object' && 'all' in lookupOptions && lookupOptions.all === true;
+
+    void dnsLookup(hostname, allLookupOptions)
+      .then((addresses: LookupAddress[]) => {
+        for (const { address } of addresses) {
+          if (this.isBlockedIpAddress(address)) throw new Error(`Blocked internal address: ${address}`);
+        }
+
+        if (requestedAll) {
+          (done as (error: Error | null, addresses: LookupAddress[]) => void)(null, addresses);
+          return;
+        }
+
+        const [firstAddress] = addresses;
+        (done as (error: Error | null, address: string, family: number) => void)(
+          null,
+          firstAddress.address,
+          firstAddress.family
+        );
+      })
+      .catch((error: Error) => {
+        (done as (error: Error, address?: string, family?: number) => void)(error);
+      });
+  };
+
+  private readonly httpAgent = new http.Agent({ lookup: this.lookupSafeAddress });
+  private readonly httpsAgent = new https.Agent({ lookup: this.lookupSafeAddress });
+
   async fetchMetadata(url: string): Promise<BookmarkMetadata> {
     const fetchedAt = new Date().toISOString();
 
@@ -88,6 +126,8 @@ class CheerioBookmarkMetadataFetcher implements BookmarkMetadataFetcher {
       const response = await axios.get(currentUrl.toString(), {
         timeout: 60000,
         maxRedirects: 0,
+        httpAgent: this.httpAgent,
+        httpsAgent: this.httpsAgent,
         validateStatus: (status) => status >= 200 && status < 400,
         beforeRedirect: (options: RedirectOptions) => this.validateRedirectOptions(options),
         headers: {
@@ -125,7 +165,7 @@ class CheerioBookmarkMetadataFetcher implements BookmarkMetadataFetcher {
 
     const hostname = this.normalizeHostname(parsedUrl.hostname);
     if (isIP(hostname) === 0) {
-      const addresses = await lookup(hostname, { all: true, verbatim: false });
+      const addresses = await dnsLookup(hostname, { all: true, verbatim: false });
       for (const { address } of addresses) {
         if (this.isBlockedIpAddress(address)) throw new Error(`Blocked internal address: ${address}`);
       }

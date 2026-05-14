@@ -71,6 +71,8 @@ describe('bookmarkMetadataFetcher', () => {
       expect.objectContaining({
         timeout: 60000,
         maxRedirects: 0,
+        httpAgent: expect.any(Object),
+        httpsAgent: expect.any(Object),
         headers: expect.objectContaining({
           'User-Agent': expect.stringContaining('Notion2WordPress'),
           Accept: expect.stringContaining('text/html'),
@@ -213,5 +215,36 @@ describe('bookmarkMetadataFetcher', () => {
     expect(() => options.beforeRedirect({ protocol: 'http:', hostname: 'localhost', path: '/redirected' })).toThrow(
       'Blocked local hostname'
     );
+  });
+
+  it('rejects unsafe addresses resolved by the axios agent lookup at connection time', async () => {
+    axiosGetMock.mockResolvedValue({ status: 200, headers: {}, data: '<html></html>' });
+
+    const fetcher = await loadFetcher();
+    await fetcher.fetchMetadata('https://example.com/post');
+
+    const options = axiosGetMock.mock.calls[0]?.[1];
+    const lookup = options?.httpsAgent?.options?.lookup;
+    expect(lookup).toEqual(expect.any(Function));
+
+    await expect(
+      new Promise((resolve, reject) => {
+        lookup('example.com', { all: false }, (error: Error | null, address: string, family: number) => {
+          if (error) reject(error);
+          else resolve({ address, family });
+        });
+      })
+    ).resolves.toEqual({ address: '93.184.216.34', family: 4 });
+
+    dnsLookupMock.mockResolvedValueOnce([{ address: '10.0.0.5', family: 4 }]);
+
+    await expect(
+      new Promise((resolve, reject) => {
+        lookup('example.com', { all: false }, (error: Error | null, address: string, family: number) => {
+          if (error) reject(error);
+          else resolve({ address, family });
+        });
+      })
+    ).rejects.toThrow('Blocked internal address: 10.0.0.5');
   });
 });

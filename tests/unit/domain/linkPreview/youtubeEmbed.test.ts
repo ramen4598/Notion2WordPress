@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderYouTubeEmbedHTML } from '../../../../src/domain/linkPreview/impl/youtubeEmbed.js';
+import { renderYouTubeEmbedHTML } from '../../../../src/domain/linkPreview/lib/youtubeEmbed.js';
 
 describe('renderYouTubeEmbedHTML', () => {
   it('renders iframe HTML for youtube.com watch URLs', () => {

@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { mdBlockCalloutWithImageMarkdownInParent } from '../../helpers/dummyMdBlock.js';
 
-const { pageToMarkdownMock, toMarkdownStringMock, setCustomTransformerMock } = vi.hoisted(() => ({
+const { pageToMarkdownMock, toMarkdownStringMock, registerTransformersMock } = vi.hoisted(() => ({
   pageToMarkdownMock: vi.fn(),
   toMarkdownStringMock: vi.fn(),
-  setCustomTransformerMock: vi.fn(),
+  registerTransformersMock: vi.fn(),
 }));
 
 vi.mock('@notionhq/client', () => ({
@@ -16,7 +16,13 @@ vi.mock('notion-to-md', () => ({
   NotionToMarkdown: class {
     pageToMarkdown = pageToMarkdownMock;
     toMarkdownString = toMarkdownStringMock;
-    setCustomTransformer = setCustomTransformerMock;
+    setCustomTransformer = vi.fn();
+  },
+}));
+
+vi.mock('../../../src/domain/linkPreview/linkPreview.js', () => ({
+  linkPreview: {
+    registerTransformers: registerTransformersMock,
   },
 }));
 
@@ -92,14 +98,15 @@ describe('Notion', () => {
     expect(response).not.toContain('image-image-1');
   });
 
-  it('registers link preview custom transformers on construction', async () => {
+  it('registers link preview transformers through the facade on construction', async () => {
     await loadNotion();
 
-    expect(setCustomTransformerMock).toHaveBeenCalledWith('bookmark', expect.any(Function));
-    expect(setCustomTransformerMock).toHaveBeenCalledWith('link_preview', expect.any(Function));
-    expect(setCustomTransformerMock).toHaveBeenCalledWith('embed', expect.any(Function));
-    expect(setCustomTransformerMock).toHaveBeenCalledWith('video', expect.any(Function));
-    expect(setCustomTransformerMock).not.toHaveBeenCalledWith('paragraph', expect.any(Function));
+    expect(registerTransformersMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageToMarkdown: expect.any(Function),
+        toMarkdownString: expect.any(Function),
+      })
+    );
   });
 
   it('preserves custom transformer raw HTML when converting markdown to HTML', async () => {

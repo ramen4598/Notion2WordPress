@@ -1,6 +1,6 @@
-import type { BookmarkMetadata } from '../interface/bookmarkMetadata.js';
+import type { LinkPreviewMetadata } from '../interface/linkPreviewMetadata.js';
 
-type BookmarkTemplateData = Pick<BookmarkMetadata, 'url' | 'title' | 'description' | 'featuredImage'>;
+type BookmarkTemplateData = Pick<LinkPreviewMetadata, 'url' | 'title' | 'description' | 'featuredImage'>;
 type Style = Record<string, string | number>;
 
 function camelToKebab(value: string): string {

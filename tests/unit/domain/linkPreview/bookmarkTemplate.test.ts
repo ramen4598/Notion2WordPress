@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderBookmarkHTML } from '../../../../src/domain/linkPreview/impl/bookmarkTemplate.js';
+import { renderBookmarkHTML } from '../../../../src/domain/linkPreview/lib/bookmarkTemplate.js';
 
 describe('renderBookmarkHTML', () => {
   it('renders a WordPress custom HTML bookmark card', () => {

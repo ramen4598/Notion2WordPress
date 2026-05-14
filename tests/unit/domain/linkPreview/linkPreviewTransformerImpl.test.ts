@@ -1,21 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerLinkPreviewTransformers } from '../../../../src/domain/linkPreview/impl/notionBlockTransformers.js';
-import { bookmarkMetadataFetcher } from '../../../../src/domain/linkPreview/impl/bookmarkMetadataFetcher.js';
-import { renderBookmarkHTML } from '../../../../src/domain/linkPreview/impl/bookmarkTemplate.js';
-import { renderYouTubeEmbedHTML } from '../../../../src/domain/linkPreview/impl/youtubeEmbed.js';
+import { linkPreviewTransformer } from '../../../../src/domain/linkPreview/impl/linkPreviewTransformerImpl.js';
+import { linkPreviewMetadataFetcher } from '../../../../src/domain/linkPreview/impl/linkPreviewMetadataFetcherImpl.js';
+import { renderBookmarkHTML } from '../../../../src/domain/linkPreview/lib/bookmarkTemplate.js';
+import { renderYouTubeEmbedHTML } from '../../../../src/domain/linkPreview/lib/youtubeEmbed.js';
 
-vi.mock('../../../../src/domain/linkPreview/impl/bookmarkMetadataFetcher.js', () => ({
-  bookmarkMetadataFetcher: {
+vi.mock('../../../../src/domain/linkPreview/impl/linkPreviewMetadataFetcherImpl.js', () => ({
+  linkPreviewMetadataFetcher: {
     fetchMetadata: vi.fn(),
   },
 }));
 
-vi.mock('../../../../src/domain/linkPreview/impl/bookmarkTemplate.js', () => ({
+vi.mock('../../../../src/domain/linkPreview/lib/bookmarkTemplate.js', () => ({
   renderBookmarkHTML: vi.fn(),
 }));
 
-vi.mock('../../../../src/domain/linkPreview/impl/youtubeEmbed.js', () => ({
+vi.mock('../../../../src/domain/linkPreview/lib/youtubeEmbed.js', () => ({
   renderYouTubeEmbedHTML: vi.fn(),
 }));
 
@@ -29,17 +29,17 @@ class FakeNotionToMarkdown {
   }
 }
 
-const fetchMetadataMock = vi.mocked(bookmarkMetadataFetcher.fetchMetadata);
+const fetchMetadataMock = vi.mocked(linkPreviewMetadataFetcher.fetchMetadata);
 const renderBookmarkHTMLMock = vi.mocked(renderBookmarkHTML);
 const renderYouTubeEmbedHTMLMock = vi.mocked(renderYouTubeEmbedHTML);
 
-describe('registerLinkPreviewTransformers', () => {
+describe('linkPreviewTransformer', () => {
   let n2m: FakeNotionToMarkdown;
 
   beforeEach(() => {
     vi.clearAllMocks();
     n2m = new FakeNotionToMarkdown();
-    registerLinkPreviewTransformers(n2m as never);
+    linkPreviewTransformer.registerTransformers(n2m as never);
   });
 
   it('registers only link preview block types', () => {

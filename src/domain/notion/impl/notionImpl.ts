@@ -5,7 +5,7 @@ import { config } from '../../../config/config.js';
 import { logger } from '../../../lib/logger.js';
 import { retryWithBackoff } from '../../../lib/retry.js';
 import { asError, isRecord } from '../../../lib/utils.js';
-import { registerLinkPreviewTransformers } from '../../linkPreview/impl/notionBlockTransformers.js';
+import { linkPreview } from '../../linkPreview/linkPreview.js';
 import { Client } from '@notionhq/client';
 import { NotionToMarkdown } from 'notion-to-md';
 import { MdBlock } from 'notion-to-md/build/types/index.js';
@@ -20,7 +20,7 @@ class Notion implements INotion {
   constructor() {
     this.client = new Client({ auth: config.notionApiToken });
     this.n2m = new NotionToMarkdown({ notionClient: this.client });
-    registerLinkPreviewTransformers(this.n2m);
+    linkPreview.registerTransformers(this.n2m);
   }
 
   async queryPages(options: QueryPagesOptions = {}): Promise<NotionPage[]> {

@@ -22,6 +22,15 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#039;');
 }
 
+function safeOverlayHref(url: string): string {
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:' ? url : '#';
+  } catch {
+    return '#';
+  }
+}
+
 const cardStyle: Style = {
   position: 'relative',
   display: 'flex',
@@ -76,7 +85,7 @@ const imageStyle: Style = {
 };
 
 export function renderBookmarkHTML(data: BookmarkTemplateData): string {
-  const escapedUrl = escapeHtml(data.url);
+  const escapedHref = escapeHtml(safeOverlayHref(data.url));
   const displayTitle = data.title.length > 0 ? data.title : data.url;
   const escapedTitle = escapeHtml(displayTitle);
   const escapedDescription = data.description ? escapeHtml(data.description) : undefined;
@@ -91,7 +100,7 @@ export function renderBookmarkHTML(data: BookmarkTemplateData): string {
 
   return `<!-- wp:html -->
 <figure class="bookmark-card" style="${styleToString(cardStyle)}">
-  <a class="bookmark-overlay-link" href="${escapedUrl}" target="_blank" rel="noopener noreferrer" aria-label="${escapedTitle}" style="${styleToString(overlayStyle)}"></a>
+  <a class="bookmark-overlay-link" href="${escapedHref}" target="_blank" rel="noopener noreferrer" aria-label="${escapedTitle}" style="${styleToString(overlayStyle)}"></a>
   <div class="bookmark-content" style="${styleToString(contentStyle)}">
     <div class="bookmark-title" style="${styleToString(titleStyle)}">${escapedTitle}</div>${descriptionHtml}
   </div>

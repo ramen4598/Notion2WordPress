@@ -45,4 +45,15 @@ describe('renderBookmarkHTML', () => {
     expect(html).not.toContain('<img');
     expect(html).toContain('<div class="bookmark-featured-image"');
   });
+
+  it('falls back to a safe href for unsafe URL schemes', () => {
+    const html = renderBookmarkHTML({
+      url: 'javascript:alert(1)',
+      title: '',
+    });
+
+    expect(html).toContain('href="#"');
+    expect(html).toContain('javascript:alert(1)');
+    expect(html).not.toContain('href="javascript:alert(1)"');
+  });
 });

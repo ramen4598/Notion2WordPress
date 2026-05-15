@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { mdBlockCalloutWithImageMarkdownInParent } from '../../helpers/dummyMdBlock.js';
 
-const { pageToMarkdownMock, toMarkdownStringMock } = vi.hoisted(() => ({
+const { pageToMarkdownMock, toMarkdownStringMock, registerTransformersMock } = vi.hoisted(() => ({
   pageToMarkdownMock: vi.fn(),
   toMarkdownStringMock: vi.fn(),
+  registerTransformersMock: vi.fn(),
 }));
 
 vi.mock('@notionhq/client', () => ({
@@ -15,6 +16,13 @@ vi.mock('notion-to-md', () => ({
   NotionToMarkdown: class {
     pageToMarkdown = pageToMarkdownMock;
     toMarkdownString = toMarkdownStringMock;
+    setCustomTransformer = vi.fn();
+  },
+}));
+
+vi.mock('../../../src/domain/linkPreview/linkPreview.js', () => ({
+  linkPreview: {
+    registerTransformers: registerTransformersMock,
   },
 }));
 
@@ -88,5 +96,35 @@ describe('Notion', () => {
     expect(response).toContain('<p>Nested detail</p>');
     expect(response).toContain('src="https://example.com/hero.png"');
     expect(response).not.toContain('image-image-1');
+  });
+
+  it('registers link preview transformers through the facade on construction', async () => {
+    await loadNotion();
+
+    expect(registerTransformersMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageToMarkdown: expect.any(Function),
+        toMarkdownString: expect.any(Function),
+      })
+    );
+  });
+
+  it('preserves custom transformer raw HTML when converting markdown to HTML', async () => {
+    pageToMarkdownMock.mockResolvedValue([
+      {
+        type: 'bookmark',
+        blockId: 'bookmark-1',
+        parent:
+          '<!-- wp:html -->\n<figure class="bookmark-card"><a href="https://example.com">Example</a></figure>\n<!-- /wp:html -->',
+        children: [],
+      },
+    ]);
+
+    const notion = await loadNotion();
+    const response = await notion.getPageHtml('page-1');
+
+    expect(response).toContain('<!-- wp:html -->');
+    expect(response).toContain('<figure class="bookmark-card">');
+    expect(response).toContain('href="https://example.com"');
   });
 });

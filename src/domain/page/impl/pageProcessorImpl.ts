@@ -156,7 +156,9 @@ export class PageProcessor implements IPageProcessor {
 
   private async processHtmlImages(page: Page, html: string): Promise<string> {
     try {
-      return await imageProcessor.processHtmlImages(page, html);
+      return await imageProcessor.processHtmlImages(page, html, {
+        excludeSelectors: ['.bookmark-card img'],
+      });
     } catch (error: unknown) {
       throw new PageException(
         `Failed to upload images for Notion page ${page.notionPageId}`,

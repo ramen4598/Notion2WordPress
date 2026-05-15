@@ -1,10 +1,12 @@
 # Notion to WordPress Sync Specification
 
-**Last Updated**: 2026-02-13
+**Last Updated**: 2026-05-16
+
+**Version**: 1.4.0
 
 ## Overview
 
-Automated synchronization system that publishes Notion pages to WordPress as draft posts, including images, with Telegram notifications.
+Automated synchronization system that publishes Notion pages to WordPress as draft posts, including images and Notion link previews, with Telegram notifications.
 
 ## Core Workflow
 
@@ -33,6 +35,15 @@ Automated synchronization system that publishes Notion pages to WordPress as dra
 - Uploads to WordPress media library
 - Downloads and uploads images in batches to optimize speed
 
+### Link Preview Handling
+- Converts Notion `bookmark` blocks into WordPress HTML bookmark cards
+- Converts API-returned read-only Notion `link_preview` blocks into WordPress HTML bookmark cards
+- Converts Notion `embed` blocks into WordPress HTML bookmark cards when metadata is available
+- Renders YouTube URLs from supported blocks as responsive iframe embeds
+- Fetches Open Graph title, description, image, and favicon metadata with a 5 second timeout and a 512 KiB body limit
+- Blocks unsupported protocols, localhost, private/internal IP ranges, unsafe redirects, and non-HTML responses
+- Falls back to a simple URL card when metadata cannot be fetched
+
 ### Error Handling
 - Max 3 retries with exponential backoff
 - Rollback WordPress resources (posts/media) on failure
@@ -46,8 +57,8 @@ Automated synchronization system that publishes Notion pages to WordPress as dra
 ## Technical Stack
 
 - **Runtime**: Node.js 20.x LTS, TypeScript 5.9.3
-- **APIs**: @notionhq/client, WordPress REST API (axios), Telegraf
-- **Conversion**: notion-to-md + marked (Notion → Markdown → HTML)
+- **APIs**: @notionhq/client, WordPress REST API (axios 1.16.1), Telegraf
+- **Conversion**: notion-to-md + marked + cheerio (Notion → Markdown → HTML → HTML post-processing)
 - **Scheduler**: node-cron
 - **Database**: SQLite (better-sqlite3) for page-post mapping
 - **Deployment**: Docker with .env configuration
@@ -72,3 +83,4 @@ All credentials managed via environment variables:
 - No auto-publish: all posts require manual admin approval
 - No Notion deletion sync: WordPress posts retained
 - No category/tag sync: WordPress defaults used
+- Link preview metadata fetch is best-effort and intentionally blocks local/private network targets

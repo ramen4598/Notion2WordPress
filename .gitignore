@@ -68,3 +68,6 @@ tmp/
 # opencode
 .opencode/
 .ignore
+
+# superpowers
+/docs/superpowers/

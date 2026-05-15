@@ -100,6 +100,7 @@ Edit `.env` with your credentials:
 | `NODE_ENV` | ❌ | `development` | Environment (development/production) |
 | `MAX_CONCURRENT_IMAGE_DOWNLOADS` | ❌ | `3` | Maximum concurrent image downloads |
 | `IMAGE_DOWNLOAD_TIMEOUT_MS` | ❌ | `30000` | Image download timeout in milliseconds |
+| `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS` | ❌ | `true` | Block localhost/private/internal link preview metadata fetches |
 | `MAX_RETRY_ATTEMPTS` | ❌ | `3` | Maximum retry attempts for failed operations |
 | `RETRY_INITIAL_DELAY_MS` | ❌ | `1000` | Initial retry delay in milliseconds |
 | `RETRY_MAX_DELAY_MS` | ❌ | `30000` | Maximum retry delay in milliseconds |
@@ -364,11 +365,12 @@ docker exec notion2wp npm run sync:manual
 
 #### 6. Bookmark, link preview, or embed falls back to URL-only card
 
-**Cause**: Metadata fetching is best-effort. The fetcher blocks unsupported protocols, localhost/private/internal-network targets, unsafe redirects, non-HTML responses, responses over 512 KiB, and requests that exceed the 5 second timeout.
+**Cause**: Metadata fetching is best-effort. The fetcher blocks unsupported protocols, localhost/private/internal-network targets by default, unsafe redirects, non-HTML responses, responses over 512 KiB, and requests that exceed the 5 second timeout.
 
 **Solution**:
 - Use a public HTTP/HTTPS URL if a rich preview is required
-- Expect private/internal URLs to render as a simple fallback card
+- Expect private/internal URLs to render as a simple fallback card unless `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false`
+- Set `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false` only in trusted internal deployments that need rich previews for internal blog links
 - Check logs for `Failed to fetch link preview metadata` when debugging
 
 ---

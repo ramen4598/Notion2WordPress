@@ -41,7 +41,8 @@ Automated synchronization system that publishes Notion pages to WordPress as dra
 - Converts Notion `embed` blocks into WordPress HTML bookmark cards when metadata is available
 - Renders YouTube URLs from supported blocks as responsive iframe embeds
 - Fetches Open Graph title, description, image, and favicon metadata with a 5 second timeout and a 512 KiB body limit
-- Blocks unsupported protocols, localhost, private/internal IP ranges, unsafe redirects, and non-HTML responses
+- Blocks unsupported protocols, unsafe redirects, and non-HTML responses
+- Blocks localhost and private/internal IP ranges by default; trusted deployments can set `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false` to allow internal link preview metadata fetches
 - Falls back to a simple URL card when metadata cannot be fetched
 
 ### Error Handling
@@ -75,6 +76,7 @@ All credentials managed via environment variables:
 
 - HTTPS/TLS for Notion and Telegram APIs (required)
 - HTTPS/TLS recommended for WordPress (HTTP acceptable for localhost/development/self-hosted)
+- Link preview metadata fetches block private networks by default to reduce SSRF risk. Setting `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false` should be limited to trusted internal deployments. default `true`.
 
 ## Limitations (MVP)
 
@@ -83,4 +85,3 @@ All credentials managed via environment variables:
 - No auto-publish: all posts require manual admin approval
 - No Notion deletion sync: WordPress posts retained
 - No category/tag sync: WordPress defaults used
-- Link preview metadata fetch is best-effort and intentionally blocks local/private network targets

@@ -245,6 +245,7 @@ Replace the placeholder values with your actual credentials from Step 2:
 | `WP_APP_PASSWORD` | Step 2.3 - Application Password | `xxxx xxxx xxxx xxxx xxxx xxxx` |
 | `TELEGRAM_BOT_TOKEN` | Step 2.4 - @BotFather | `1234567890:ABCdef...` |
 | `TELEGRAM_CHAT_ID` | Step 2.5 - getUpdates API | `123456789` or `@channel_name` |
+| `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS` | Optional link preview safety toggle | `true` (default) or `false` for trusted internal blog networks |
 
 if you don't want Telegram notifications, set:
 ```
@@ -268,6 +269,7 @@ TELEGRAM_CHAT_ID=
 > - Never commit `.env` file to Git/GitHub
 > - Keep your `.env` file private
 > - Don't share credentials in screenshots or logs
+> - Keep `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=true` unless you trust the network and need rich previews for internal blog links. Setting it to `false` allows link preview fetches to localhost/private/internal addresses. When set to false, there is a risk of SSRF attacks if untrusted URLs are included in Notion pages. The default value is `true` which blocks link preview fetches to private network addresses for security.
 
 ### 3.4 Verify Your Configuration
 
@@ -816,13 +818,14 @@ curl -u "username:xxxx xxxx xxxx xxxx xxxx xxxx" \
 
 **What to know:**
 - Link preview metadata is fetched on a best-effort basis.
-- Private, localhost, internal-network, non-HTML, slow, or oversized URLs are intentionally skipped for safety.
+- Private, localhost, internal-network, non-HTML, slow, or oversized URLs are skipped by default for safety.
+- Trusted internal deployments can set `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false` to allow internal blog link previews.
 - YouTube watch, short, and embed URLs are rendered as responsive iframe embeds.
 - Non-YouTube embed blocks are rendered as bookmark cards when metadata is available.
 
 **Solutions:**
 - Confirm the URL is publicly reachable over HTTP or HTTPS.
-- For private content, expect a simple URL card rather than a rich preview.
+- For private content, expect a simple URL card unless private-network blocking is disabled.
 - Check logs with `docker compose logs --tail=100` if a public URL still falls back.
 
 ---
@@ -1166,6 +1169,7 @@ docker run ... ghcr.io/ramen4598/notion2wordpress:v1.4.0
    - ✅ **Required**: Telegram API (enforced)  
    - ⚠️ **Strongly recommended**: WordPress API
    - ℹ️ **Acceptable for HTTP**: `localhost`, `127.0.0.1`, local dev, internal networks
+   - ⚠️ **Link previews**: Keep private-network blocking enabled unless you intentionally trust internal URLs. When set to false, there is a risk of SSRF attacks if untrusted URLs are included in Notion pages. The default value is `true` which blocks link preview fetches to private network addresses for security.
 
 2. **Protect Your .env File**
    ```bash
@@ -1303,8 +1307,8 @@ This is an MVP (Minimum Viable Product) release with intentional limitations:
    - **Workaround**: Only set to `adding` once per page
 
 6. **Best-effort bookmark/link preview/embed cards** - Some URLs render as simple cards
-   - Private, local, internal-network, non-HTML, slow, or oversized URLs are skipped for safety
-   - **Workaround**: Use a public URL or edit the draft in WordPress after sync
+   - Private, local, internal-network, non-HTML, slow, or oversized URLs are skipped by default for safety
+   - **Workaround**: Use a public URL, set `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false` in trusted internal deployments, or edit the draft in WordPress after sync
 
 ### Planned Features
 

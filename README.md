@@ -88,7 +88,7 @@ src/
 - No deletion sync: WordPress posts are retained even when deleted in Notion
 - No category/tag sync: WordPress defaults are used
 - No duplicate image check: There is no function to detect duplicate images or prevent uploads
-- Link preview metadata is best-effort: unsupported, private, internal-network, slow, or oversized URLs fall back to a simple card
+- Link preview metadata is best-effort: unsupported, private/internal-network, slow, or oversized URLs fall back to a simple card unless `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false`
 
 ## 🔒 Security
 
@@ -96,6 +96,7 @@ src/
 - WordPress API recommends HTTPS (HTTP allowed for localhost/development environments)
 - All credentials are managed via environment variables
 - Enhanced WordPress account security using Application Passwords
+- Link preview metadata fetches block localhost/private/internal networks by default. Disable this only for trusted internal blog networks because it expands SSRF exposure.
 
 ## 📄 License
 

@@ -241,6 +241,34 @@ describe('linkPreviewMetadataFetcher', () => {
     });
   });
 
+  it('falls back to favicon when og:image cannot be resolved', async () => {
+    axiosGetMock.mockResolvedValue(
+      createResponse({
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+        body: `<!doctype html>
+          <html>
+            <head>
+              <meta property="og:title" content="Image Fallback Title">
+              <meta property="og:description" content="Keep this description">
+              <meta property="og:image" content="https://[broken-url">
+              <link rel="icon" href="/favicon.ico">
+            </head>
+          </html>`,
+      })
+    );
+
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('https://example.com/post');
+
+    expect(metadata).toMatchObject({
+      url: 'https://example.com/post',
+      title: 'Image Fallback Title',
+      description: 'Keep this description',
+      featuredImage: 'https://example.com/favicon.ico',
+    });
+    expect(metadata.error).toBeUndefined();
+  });
+
   it('returns fallback metadata when axios times out', async () => {
     axiosGetMock.mockRejectedValue(new Error('timeout of 5000ms exceeded'));
 
@@ -294,6 +322,21 @@ describe('linkPreviewMetadataFetcher', () => {
     });
     expect(metadata.error).toContain('Blocked internal address');
     expect(dnsLookupMock).toHaveBeenCalledWith('internal.example.com', { all: true, verbatim: false });
+    expect(axiosGetMock).not.toHaveBeenCalled();
+  });
+
+  it('returns fallback metadata when DNS lookup returns no addresses', async () => {
+    dnsLookupMock.mockResolvedValue([]);
+
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('https://empty-dns.example.com/page');
+
+    expect(metadata).toMatchObject({
+      url: 'https://empty-dns.example.com/page',
+      title: 'https://empty-dns.example.com/page',
+      featuredImage: undefined,
+      error: 'DNS lookup returned no addresses',
+    });
     expect(axiosGetMock).not.toHaveBeenCalled();
   });
 
@@ -370,5 +413,16 @@ describe('linkPreviewMetadataFetcher', () => {
         });
       })
     ).rejects.toThrow('Blocked internal address: 10.0.0.5');
+
+    dnsLookupMock.mockResolvedValueOnce([]);
+
+    await expect(
+      new Promise((resolve, reject) => {
+        lookup('example.com', { all: false }, (error: Error | null, address: string, family: number) => {
+          if (error) reject(error);
+          else resolve({ address, family });
+        });
+      })
+    ).rejects.toThrow('DNS lookup returned no addresses');
   });
 });

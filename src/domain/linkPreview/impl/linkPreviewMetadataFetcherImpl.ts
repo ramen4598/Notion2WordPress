@@ -158,13 +158,13 @@ function extractMetadataFromHtml({
   const title = getMetaContent($, 'property', 'og:title') || $('title').first().text().trim() || originalUrl;
   const description = getMetaContent($, 'property', 'og:description') || undefined;
   const ogImage = getMetaContent($, 'property', 'og:image');
-  const favicon = ogImage ? undefined : getFaviconUrl($);
+  const favicon = getFaviconUrl($);
 
   return {
     url: originalUrl,
     title,
     description,
-    featuredImage: ogImage ? resolveUrl(ogImage, assetBaseUrl) : resolveOptionalUrl(favicon, assetBaseUrl),
+    featuredImage: tryResolveUrl(ogImage, assetBaseUrl) ?? tryResolveUrl(favicon, assetBaseUrl),
     fetchedAt,
   };
 }
@@ -188,12 +188,14 @@ function getAssetBaseUrl($: cheerio.CheerioAPI, finalUrl: URL): string {
   }
 }
 
-function resolveUrl(value: string, baseUrl: string): string {
-  return new URL(value, baseUrl).toString();
-}
+function tryResolveUrl(value: string | undefined, baseUrl: string): string | undefined {
+  if (!value) return undefined;
 
-function resolveOptionalUrl(value: string | undefined, baseUrl: string): string | undefined {
-  return value ? resolveUrl(value, baseUrl) : undefined;
+  try {
+    return new URL(value, baseUrl).toString();
+  } catch {
+    return undefined;
+  }
 }
 
 function isRedirectStatus(status: number): boolean {
@@ -305,6 +307,10 @@ function createSafeLookupFunction(): SafeLookupFunction {
 }
 
 function rejectBlockedAddresses(addresses: LookupAddress[]): void {
+  if (addresses.length === 0) {
+    throw new LinkPreviewException('DNS lookup returned no addresses');
+  }
+
   for (const { address } of addresses) {
     if (isBlockedIpAddress(address)) {
       throw new LinkPreviewException(`Blocked internal address: ${address}`);

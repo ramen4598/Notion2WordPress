@@ -7,17 +7,26 @@ import * as https from 'node:https';
 import { isIP } from 'node:net';
 import { Readable } from 'node:stream';
 
+import { config } from '../../../config/config.js';
 import { logger } from '../../../lib/logger.js';
 import { retryWithBackoff } from '../../../lib/retry.js';
 import { asError } from '../../../lib/utils.js';
 import { LinkPreviewException } from '../error/linkPreview.error.js';
-import type { ILinkPreviewMetadataFetcher, LinkPreviewMetadata } from '../interface/linkPreviewMetadata.js';
+import type {
+  ILinkPreviewMetadataFetcher,
+  LinkPreviewMetadata,
+} from '../interface/linkPreviewMetadata.js';
 
 const MAX_REDIRECTS = 5;
 const LINK_PREVIEW_FETCH_TIMEOUT_MS = 5000;
 const LINK_PREVIEW_FETCH_MAX_ATTEMPTS = 1;
 const LINK_PREVIEW_MAX_BODY_BYTES = 512 * 1024;
-const HTML_CONTENT_TYPES = new Set(['text/html', 'application/xhtml+xml', 'application/xml', 'text/xml']);
+const HTML_CONTENT_TYPES = new Set([
+  'text/html',
+  'application/xhtml+xml',
+  'application/xml',
+  'text/xml',
+]);
 
 type RedirectOptions = {
   protocol?: string;
@@ -35,7 +44,11 @@ type RedirectResult = {
 
 type SafeLookupFunction = NonNullable<http.AgentOptions['lookup']>;
 
-type LookupCallback = (error: Error | null, address?: string | LookupAddress[], family?: number) => void;
+type LookupCallback = (
+  error: Error | null,
+  address?: string | LookupAddress[],
+  family?: number
+) => void;
 
 type ResponseHeaders = Record<string, unknown>;
 
@@ -131,7 +144,11 @@ class LinkPreviewMetadataFetcherImpl implements ILinkPreviewMetadataFetcher {
   }
 }
 
-function createFallbackMetadata(url: string, fetchedAt: string, error: string): LinkPreviewMetadata {
+function createFallbackMetadata(
+  url: string,
+  fetchedAt: string,
+  error: string
+): LinkPreviewMetadata {
   return {
     url,
     title: url,
@@ -155,7 +172,8 @@ function extractMetadataFromHtml({
 }): LinkPreviewMetadata {
   const $ = cheerio.load(html);
   const assetBaseUrl = getAssetBaseUrl($, finalUrl);
-  const title = getMetaContent($, 'property', 'og:title') || $('title').first().text().trim() || originalUrl;
+  const title =
+    getMetaContent($, 'property', 'og:title') || $('title').first().text().trim() || originalUrl;
   const description = getMetaContent($, 'property', 'og:description') || undefined;
   const ogImage = getMetaContent($, 'property', 'og:image');
   const favicon = getFaviconUrl($);
@@ -169,7 +187,11 @@ function extractMetadataFromHtml({
   };
 }
 
-function getMetaContent($: cheerio.CheerioAPI, attribute: string, value: string): string | undefined {
+function getMetaContent(
+  $: cheerio.CheerioAPI,
+  attribute: string,
+  value: string
+): string | undefined {
   return $(`meta[${attribute}="${value}"]`).attr('content')?.trim() || undefined;
 }
 
@@ -202,7 +224,11 @@ function isRedirectStatus(status: number): boolean {
   return status >= 300 && status < 400;
 }
 
-async function getNextRedirectUrl(currentUrl: URL, headers: ResponseHeaders, redirectCount: number): Promise<URL> {
+async function getNextRedirectUrl(
+  currentUrl: URL,
+  headers: ResponseHeaders,
+  redirectCount: number
+): Promise<URL> {
   const location = headers.location;
   if (!location) throw new LinkPreviewException('Redirect response missing Location header');
   if (redirectCount === MAX_REDIRECTS) throw new LinkPreviewException('Too many redirects');
@@ -219,7 +245,9 @@ function validateHtmlResponseHeaders(headers: ResponseHeaders): void {
 
   const contentLength = Number(headers['content-length']);
   if (Number.isFinite(contentLength) && contentLength > LINK_PREVIEW_MAX_BODY_BYTES) {
-    throw new LinkPreviewException(`Link preview content-length exceeds limit: ${contentLength} bytes`);
+    throw new LinkPreviewException(
+      `Link preview content-length exceeds limit: ${contentLength} bytes`
+    );
   }
 }
 
@@ -244,7 +272,9 @@ async function readLimitedResponseBody(stream: unknown): Promise<string> {
 
     if (totalBytes > LINK_PREVIEW_MAX_BODY_BYTES) {
       stream.destroy();
-      throw new LinkPreviewException(`Response body exceeded link preview byte limit: ${totalBytes} bytes`);
+      throw new LinkPreviewException(
+        `Response body exceeded link preview byte limit: ${totalBytes} bytes`
+      );
     }
 
     chunks.push(buffer);
@@ -265,7 +295,7 @@ function validateRedirectOptions(options: RedirectOptions): void {
 function buildRedirectUrlFromOptions(options: RedirectOptions): URL {
   const redirectHost = options.hostname
     ? `${options.hostname}${options.port ? `:${options.port}` : ''}`
-    : options.host ?? '';
+    : (options.host ?? '');
 
   return new URL(`${options.protocol ?? 'https:'}//${redirectHost}${options.path ?? '/'}`);
 }
@@ -279,11 +309,13 @@ async function validateFetchableUrl(value: string): Promise<URL> {
 }
 
 async function rejectBlockedDnsTargets(parsedUrl: URL): Promise<void> {
+  if (!config.linkPreviewBlockPrivateNetworks) return;
+
   const hostname = normalizeHostname(parsedUrl.hostname);
   if (isIP(hostname) !== 0) return;
 
   const addresses = await dnsLookup(hostname, { all: true, verbatim: false });
-  rejectBlockedAddresses(addresses);
+  validateLookupAddresses(addresses);
 }
 
 function createSafeLookupFunction(): SafeLookupFunction {
@@ -293,11 +325,12 @@ function createSafeLookupFunction(): SafeLookupFunction {
     if (!done) throw new LinkPreviewException('Missing DNS lookup callback');
 
     const allLookupOptions = { ...lookupOptions, all: true as const, verbatim: false };
-    const requestedAll = typeof lookupOptions === 'object' && 'all' in lookupOptions && lookupOptions.all === true;
+    const requestedAll =
+      typeof lookupOptions === 'object' && 'all' in lookupOptions && lookupOptions.all === true;
 
     void dnsLookup(hostname, allLookupOptions)
       .then((addresses) => {
-        rejectBlockedAddresses(addresses);
+        validateLookupAddresses(addresses);
         callLookupCallback(done as LookupCallback, addresses, requestedAll);
       })
       .catch((error: Error) => {
@@ -306,10 +339,12 @@ function createSafeLookupFunction(): SafeLookupFunction {
   };
 }
 
-function rejectBlockedAddresses(addresses: LookupAddress[]): void {
+function validateLookupAddresses(addresses: LookupAddress[]): void {
   if (addresses.length === 0) {
     throw new LinkPreviewException('DNS lookup returned no addresses');
   }
+
+  if (!config.linkPreviewBlockPrivateNetworks) return;
 
   for (const { address } of addresses) {
     if (isBlockedIpAddress(address)) {
@@ -318,7 +353,11 @@ function rejectBlockedAddresses(addresses: LookupAddress[]): void {
   }
 }
 
-function callLookupCallback(done: LookupCallback, addresses: LookupAddress[], requestedAll: boolean): void {
+function callLookupCallback(
+  done: LookupCallback,
+  addresses: LookupAddress[],
+  requestedAll: boolean
+): void {
   if (requestedAll) {
     done(null, addresses);
     return;
@@ -334,6 +373,8 @@ function validateUrlParts(parsedUrl: URL): void {
     throw new LinkPreviewException(`Unsupported URL protocol: ${parsedUrl.protocol}`);
   }
 
+  if (!config.linkPreviewBlockPrivateNetworks) return;
+
   const hostname = normalizeHostname(parsedUrl.hostname);
   if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
     throw new LinkPreviewException(`Blocked local hostname: ${hostname}`);
@@ -345,7 +386,10 @@ function validateUrlParts(parsedUrl: URL): void {
 }
 
 function normalizeHostname(hostname: string): string {
-  return hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+  return hostname
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '')
+    .replace(/\.$/, '');
 }
 
 function isBlockedIpAddress(address: string): boolean {
@@ -379,7 +423,9 @@ function isBlockedIpv6Address(address: string): boolean {
   const mappedIpv4 = normalizedAddress.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
   if (mappedIpv4) return isBlockedIpv4Address(mappedIpv4[1]);
 
-  const mappedIpv4Hex = normalizedAddress.match(/^(?:::ffff:|0:0:0:0:0:ffff:)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  const mappedIpv4Hex = normalizedAddress.match(
+    /^(?:::ffff:|0:0:0:0:0:ffff:)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/
+  );
   if (mappedIpv4Hex) return isBlockedMappedIpv4HexAddress(mappedIpv4Hex[1], mappedIpv4Hex[2]);
   if (normalizedAddress === '::' || normalizedAddress === '::1') return true;
 
@@ -403,4 +449,5 @@ function isBlockedMappedIpv4HexAddress(high: string, low: string): boolean {
   return isBlockedIpv4Address(ipv4Address);
 }
 
-export const linkPreviewMetadataFetcher: ILinkPreviewMetadataFetcher = new LinkPreviewMetadataFetcherImpl();
+export const linkPreviewMetadataFetcher: ILinkPreviewMetadataFetcher =
+  new LinkPreviewMetadataFetcherImpl();

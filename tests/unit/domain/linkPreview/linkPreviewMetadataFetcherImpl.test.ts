@@ -33,7 +33,9 @@ vi.mock('../../../../src/lib/logger.js', () => ({
 }));
 
 function createStream(chunks: Array<string | Buffer>): Readable {
-  return Readable.from(chunks.map((chunk) => (typeof chunk === 'string' ? Buffer.from(chunk) : chunk)));
+  return Readable.from(
+    chunks.map((chunk) => (typeof chunk === 'string' ? Buffer.from(chunk) : chunk))
+  );
 }
 
 function createResponse({
@@ -69,7 +71,8 @@ class TrackingReadable extends Readable {
 
 async function loadFetcher() {
   vi.resetModules();
-  const mod = await import('../../../../src/domain/linkPreview/impl/linkPreviewMetadataFetcherImpl.js');
+  const mod =
+    await import('../../../../src/domain/linkPreview/impl/linkPreviewMetadataFetcherImpl.js');
   return mod.linkPreviewMetadataFetcher;
 }
 
@@ -309,6 +312,82 @@ describe('linkPreviewMetadataFetcher', () => {
     expect(axiosGetMock).not.toHaveBeenCalled();
   });
 
+  it('fetches localhost metadata when private-network blocking is disabled', async () => {
+    vi.stubEnv('LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS', 'false');
+    axiosGetMock.mockResolvedValue(
+      createResponse({
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+        body: '<html><head><title>Local Blog Post</title></head></html>',
+      })
+    );
+
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('http://localhost:3000/page');
+
+    expect(metadata).toMatchObject({
+      url: 'http://localhost:3000/page',
+      title: 'Local Blog Post',
+    });
+    expect(metadata.error).toBeUndefined();
+    expect(axiosGetMock).toHaveBeenCalledWith('http://localhost:3000/page', expect.any(Object));
+  });
+
+  it('keeps blocking localhost metadata when private-network blocking is explicitly enabled', async () => {
+    vi.stubEnv('LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS', 'true');
+
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('http://localhost:3000/page');
+
+    expect(metadata).toMatchObject({
+      url: 'http://localhost:3000/page',
+      title: 'http://localhost:3000/page',
+      featuredImage: undefined,
+    });
+    expect(metadata.error).toContain('Blocked local hostname');
+    expect(axiosGetMock).not.toHaveBeenCalled();
+  });
+
+  it('uses existing boolean parsing where non-true values disable private-network blocking', async () => {
+    vi.stubEnv('LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS', '0');
+    axiosGetMock.mockResolvedValue(
+      createResponse({
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+        body: '<html><head><title>Non True Toggle</title></head></html>',
+      })
+    );
+
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('http://localhost:3000/page');
+
+    expect(metadata).toMatchObject({
+      url: 'http://localhost:3000/page',
+      title: 'Non True Toggle',
+    });
+    expect(metadata.error).toBeUndefined();
+    expect(axiosGetMock).toHaveBeenCalledWith('http://localhost:3000/page', expect.any(Object));
+  });
+
+  it('fetches direct private IP metadata when private-network blocking is disabled', async () => {
+    vi.stubEnv('LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS', 'false');
+    axiosGetMock.mockResolvedValue(
+      createResponse({
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+        body: '<html><head><title>Private IP Blog Post</title></head></html>',
+      })
+    );
+
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('http://192.168.0.10/post');
+
+    expect(metadata).toMatchObject({
+      url: 'http://192.168.0.10/post',
+      title: 'Private IP Blog Post',
+    });
+    expect(metadata.error).toBeUndefined();
+    expect(dnsLookupMock).not.toHaveBeenCalledWith('192.168.0.10', expect.any(Object));
+    expect(axiosGetMock).toHaveBeenCalledWith('http://192.168.0.10/post', expect.any(Object));
+  });
+
   it('returns fallback metadata for hostnames that resolve to loopback addresses', async () => {
     dnsLookupMock.mockResolvedValue([{ address: '127.0.0.1', family: 4 }]);
 
@@ -321,8 +400,39 @@ describe('linkPreviewMetadataFetcher', () => {
       featuredImage: undefined,
     });
     expect(metadata.error).toContain('Blocked internal address');
-    expect(dnsLookupMock).toHaveBeenCalledWith('internal.example.com', { all: true, verbatim: false });
+    expect(dnsLookupMock).toHaveBeenCalledWith('internal.example.com', {
+      all: true,
+      verbatim: false,
+    });
     expect(axiosGetMock).not.toHaveBeenCalled();
+  });
+
+  it('fetches metadata for hostnames that resolve internally when private-network blocking is disabled', async () => {
+    vi.stubEnv('LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS', 'false');
+    dnsLookupMock.mockResolvedValue([{ address: '10.0.0.5', family: 4 }]);
+    axiosGetMock.mockResolvedValue(
+      createResponse({
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+        body: '<html><head><title>Internal Blog Post</title></head></html>',
+      })
+    );
+
+    const fetcher = await loadFetcher();
+    const metadata = await fetcher.fetchMetadata('https://internal.example.com/page');
+
+    expect(metadata).toMatchObject({
+      url: 'https://internal.example.com/page',
+      title: 'Internal Blog Post',
+    });
+    expect(metadata.error).toBeUndefined();
+    expect(dnsLookupMock).not.toHaveBeenCalledWith('internal.example.com', {
+      all: true,
+      verbatim: false,
+    });
+    expect(axiosGetMock).toHaveBeenCalledWith(
+      'https://internal.example.com/page',
+      expect.any(Object)
+    );
   });
 
   it('returns fallback metadata when DNS lookup returns no addresses', async () => {
@@ -374,9 +484,28 @@ describe('linkPreviewMetadataFetcher', () => {
     const options = axiosGetMock.mock.calls[0]?.[1];
     expect(options?.beforeRedirect).toEqual(expect.any(Function));
 
-    expect(() => options.beforeRedirect({ protocol: 'http:', hostname: 'localhost', path: '/redirected' })).toThrow(
-      'Blocked local hostname'
+    expect(() =>
+      options.beforeRedirect({ protocol: 'http:', hostname: 'localhost', path: '/redirected' })
+    ).toThrow('Blocked local hostname');
+  });
+
+  it('allows internal redirect targets when private-network blocking is disabled', async () => {
+    vi.stubEnv('LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS', 'false');
+    axiosGetMock.mockResolvedValue(
+      createResponse({
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+        body: '<html></html>',
+      })
     );
+
+    const fetcher = await loadFetcher();
+    await fetcher.fetchMetadata('https://example.com/post');
+
+    const options = axiosGetMock.mock.calls[0]?.[1];
+    expect(options?.beforeRedirect).toEqual(expect.any(Function));
+    expect(() =>
+      options.beforeRedirect({ protocol: 'http:', hostname: 'localhost', path: '/redirected' })
+    ).not.toThrow();
   });
 
   it('rejects unsafe addresses resolved by the axios agent lookup at connection time', async () => {
@@ -396,10 +525,14 @@ describe('linkPreviewMetadataFetcher', () => {
 
     await expect(
       new Promise((resolve, reject) => {
-        lookup('example.com', { all: false }, (error: Error | null, address: string, family: number) => {
-          if (error) reject(error);
-          else resolve({ address, family });
-        });
+        lookup(
+          'example.com',
+          { all: false },
+          (error: Error | null, address: string, family: number) => {
+            if (error) reject(error);
+            else resolve({ address, family });
+          }
+        );
       })
     ).resolves.toEqual({ address: '93.184.216.34', family: 4 });
 
@@ -407,10 +540,14 @@ describe('linkPreviewMetadataFetcher', () => {
 
     await expect(
       new Promise((resolve, reject) => {
-        lookup('example.com', { all: false }, (error: Error | null, address: string, family: number) => {
-          if (error) reject(error);
-          else resolve({ address, family });
-        });
+        lookup(
+          'example.com',
+          { all: false },
+          (error: Error | null, address: string, family: number) => {
+            if (error) reject(error);
+            else resolve({ address, family });
+          }
+        );
       })
     ).rejects.toThrow('Blocked internal address: 10.0.0.5');
 
@@ -418,11 +555,47 @@ describe('linkPreviewMetadataFetcher', () => {
 
     await expect(
       new Promise((resolve, reject) => {
-        lookup('example.com', { all: false }, (error: Error | null, address: string, family: number) => {
-          if (error) reject(error);
-          else resolve({ address, family });
-        });
+        lookup(
+          'example.com',
+          { all: false },
+          (error: Error | null, address: string, family: number) => {
+            if (error) reject(error);
+            else resolve({ address, family });
+          }
+        );
       })
     ).rejects.toThrow('DNS lookup returned no addresses');
+  });
+
+  it('allows internal addresses resolved by the axios agent when private-network blocking is disabled', async () => {
+    vi.stubEnv('LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS', 'false');
+    axiosGetMock.mockResolvedValue(
+      createResponse({
+        headers: { 'content-type': 'text/html; charset=utf-8' },
+        body: '<html></html>',
+      })
+    );
+
+    const fetcher = await loadFetcher();
+    await fetcher.fetchMetadata('https://example.com/post');
+
+    const options = axiosGetMock.mock.calls[0]?.[1];
+    const lookup = options?.httpsAgent?.options?.lookup;
+    expect(lookup).toEqual(expect.any(Function));
+
+    dnsLookupMock.mockResolvedValueOnce([{ address: '10.0.0.5', family: 4 }]);
+
+    await expect(
+      new Promise((resolve, reject) => {
+        lookup(
+          'example.com',
+          { all: false },
+          (error: Error | null, address: string, family: number) => {
+            if (error) reject(error);
+            else resolve({ address, family });
+          }
+        );
+      })
+    ).resolves.toEqual({ address: '10.0.0.5', family: 4 });
   });
 });

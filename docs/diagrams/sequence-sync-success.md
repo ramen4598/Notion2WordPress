@@ -9,6 +9,8 @@ sequenceDiagram
     participant Orchestrator as Orchestrator
     participant DB as Database
     participant Notion as Notion
+    participant LinkPreview as LinkPreview
+    participant ImageProcessor as ImageProcessor
     participant Downloader as ImageDownloader
     participant WP as WordPress
     participant Telegram as Telegram
@@ -22,28 +24,30 @@ sequenceDiagram
     loop Each Notion page
         Orchestrator->>DB: createPage(job_id, notion_page_id, status=pending)
         Orchestrator->>Notion: getPageHTML(page.id)
-        Notion->>Notion: Extract images and replace urls with placeholders
-        Notion-->>Orchestrator: html, images
-        alt Images detected
+        Notion->>LinkPreview: transform bookmark/link_preview/embed blocks and YouTube URLs
+        LinkPreview-->>Notion: bookmark cards or YouTube iframe HTML
+        Notion->>Notion: Convert Markdown to HTML
+        Notion-->>Orchestrator: html
+        Orchestrator->>Notion: updatePageStatus(page.id, done)
+        Orchestrator->>ImageProcessor: processHtmlImages(page, html, exclude bookmark-card images)
+        alt Eligible HTML images detected
             loop For each image
-		            Orchestrator->>DB: createImageAsset(page_id, notion_page_id, notion_block_id, notion_url, status: pending)
-                Orchestrator->>Downloader: download(image.url)
-                Downloader-->>Orchestrator: buffer, metadata
-                Orchestrator->>WP: uploadMedia(buffer, filename)
-                WP-->>Orchestrator: mediaId, url
-                Orchestrator->>DB: updateImageAsset(status: uploaded, wp_media_id, wp_media_url)
-                Orchestrator->>Orchestrator: map placeholder -> media.url
+                ImageProcessor->>DB: createImageAsset(page_id, notion_page_id, html_image_id, image_url, status: pending)
+                ImageProcessor->>Downloader: download(image.url)
+                Downloader-->>ImageProcessor: buffer, metadata
+                ImageProcessor->>WP: uploadMedia(buffer, filename)
+                WP-->>ImageProcessor: mediaId, url
+                ImageProcessor->>DB: updateImageAsset(status: uploaded, wp_media_id, wp_media_url)
+                ImageProcessor->>ImageProcessor: rewrite img src to WordPress media URL
             end
         else No images
-            Orchestrator->>Orchestrator: continue without uploads
+            ImageProcessor-->>Orchestrator: original html
         end
-        Orchestrator->>WP: replaceImageUrls(html, map)
-        WP-->>Orchestrator: renderedHtml
+        ImageProcessor-->>Orchestrator: renderedHtml
         Orchestrator->>WP: createDraftPost(title, renderedHtml, draft)
         WP-->>Orchestrator: postId
         Orchestrator->>DB: updatePage(wp_post_id=postId)
         Orchestrator->>DB: createNPagePostMap(notion_page_id, wp_post_id)
-        Orchestrator->>Notion: updatePageStatus(page.id, done)
         Orchestrator->>DB: updatePage(status=success)
     end
 

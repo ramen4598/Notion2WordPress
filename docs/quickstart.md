@@ -1,7 +1,8 @@
 # Quickstart Guide: Notion to WordPress Sync
 
-**Last Updated**: 2026-02-13  
-**Version**: 1.3.0
+**Last Updated**: 2026-05-16
+
+**Version**: 1.4.0
 
 ## Introduction
 
@@ -16,6 +17,7 @@ This guide helps you deploy **Notion2WordPress** - an automated service that syn
 **What you'll get:**
 - Automatic syncing every 5 minutes (configurable)
 - Images uploaded to WordPress media library
+- Notion bookmark, link preview, and embed blocks rendered in WordPress-friendly HTML, with YouTube URLs rendered as embeds
 - Telegram notifications for sync status (optional)
 - Draft posts ready for review before publishing
 
@@ -243,6 +245,7 @@ Replace the placeholder values with your actual credentials from Step 2:
 | `WP_APP_PASSWORD` | Step 2.3 - Application Password | `xxxx xxxx xxxx xxxx xxxx xxxx` |
 | `TELEGRAM_BOT_TOKEN` | Step 2.4 - @BotFather | `1234567890:ABCdef...` |
 | `TELEGRAM_CHAT_ID` | Step 2.5 - getUpdates API | `123456789` or `@channel_name` |
+| `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS` | Optional link preview safety toggle | `true` (default) or `false` for trusted internal blog networks |
 
 if you don't want Telegram notifications, set:
 ```
@@ -266,6 +269,7 @@ TELEGRAM_CHAT_ID=
 > - Never commit `.env` file to Git/GitHub
 > - Keep your `.env` file private
 > - Don't share credentials in screenshots or logs
+> - Keep `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=true` unless you trust the network and need rich previews for internal blog links. Setting it to `false` allows link preview fetches to localhost/private/internal addresses. When set to false, there is a risk of SSRF attacks if untrusted URLs are included in Notion pages. The default value is `true` which blocks link preview fetches to private network addresses for security.
 
 ### 3.4 Verify Your Configuration
 
@@ -417,7 +421,7 @@ ls -lh data/
 
 1. **Create a test page** in your Notion database
 2. **Set status** to `writing` (default)
-3. **Add some content** (text, heading, image - optional)
+3. **Add some content** (text, heading, image, bookmark, link preview, embed, or YouTube URL - optional)
 4. **Change status** to `adding`
 5. **Wait up to 5 minutes** (default sync interval)
 6. **Check Telegram** for notification
@@ -439,7 +443,7 @@ ls -lh data/
 1. **Write in Notion**
    - Create pages in your synced database
    - Keep status as `writing` while drafting
-   - Add text, headings, images, lists, etc.
+   - Add text, headings, images, lists, bookmark blocks, link preview blocks, embed blocks, YouTube URLs, etc.
 
 2. **Trigger Sync**
    - Change status to `adding` when ready
@@ -804,7 +808,29 @@ curl -u "username:xxxx xxxx xxxx xxxx xxxx xxxx" \
 
 ---
 
-#### Issue 9: Container Keeps Restarting
+#### Issue 9: Bookmark, Link Preview, or Embed Looks Incomplete
+
+**Symptoms:**
+- Bookmark card appears with only the URL
+- External preview thumbnail is missing
+- Non-YouTube embed appears as a link card
+- Embed block appears as a link card instead of rich media
+
+**What to know:**
+- Link preview metadata is fetched on a best-effort basis.
+- Private, localhost, internal-network, non-HTML, slow, or oversized URLs are skipped by default for safety.
+- Trusted internal deployments can set `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false` to allow internal blog link previews.
+- YouTube watch, short, and embed URLs are rendered as responsive iframe embeds.
+- Non-YouTube embed blocks are rendered as bookmark cards when metadata is available.
+
+**Solutions:**
+- Confirm the URL is publicly reachable over HTTP or HTTPS.
+- For private content, expect a simple URL card unless private-network blocking is disabled.
+- Check logs with `docker compose logs --tail=100` if a public URL still falls back.
+
+---
+
+#### Issue 10: Container Keeps Restarting
 
 **Symptoms:**
 ```bash
@@ -1041,7 +1067,7 @@ RETRY_BACKOFF_MULTIPLIER=2
 # ============================================
 N2W_VERSION=latest
 # Docker image tag to use
-# Options: latest, v1.0.0, v1.1.0, etc.
+# Options: latest, v1.4.0, v1.3.1, etc.
 # Change in docker-compose.yml or docker run command
 ```
 
@@ -1120,12 +1146,12 @@ To pin to a specific version instead of `latest`:
 
 **.env** - Edit `.env`:
 ```
-N2W_VERSION=1.0.0
+N2W_VERSION=v1.4.0
 ```
 
 **Docker Run:**
 ```bash
-docker run ... ghcr.io/ramen4598/notion2wordpress:v1.0.0
+docker run ... ghcr.io/ramen4598/notion2wordpress:v1.4.0
 ```
 
 **Available versions:** https://github.com/ramen4598/Notion2Wordpress/pkgs/container/notion2wordpress
@@ -1143,6 +1169,7 @@ docker run ... ghcr.io/ramen4598/notion2wordpress:v1.0.0
    - ✅ **Required**: Telegram API (enforced)  
    - ⚠️ **Strongly recommended**: WordPress API
    - ℹ️ **Acceptable for HTTP**: `localhost`, `127.0.0.1`, local dev, internal networks
+   - ⚠️ **Link previews**: Keep private-network blocking enabled unless you intentionally trust internal URLs. When set to false, there is a risk of SSRF attacks if untrusted URLs are included in Notion pages. The default value is `true` which blocks link preview fetches to private network addresses for security.
 
 2. **Protect Your .env File**
    ```bash
@@ -1278,6 +1305,10 @@ This is an MVP (Minimum Viable Product) release with intentional limitations:
 
 5. **Limited idempotency** - Changing status to `adding` multiple times creates duplicates
    - **Workaround**: Only set to `adding` once per page
+
+6. **Best-effort bookmark/link preview/embed cards** - Some URLs render as simple cards
+   - Private, local, internal-network, non-HTML, slow, or oversized URLs are skipped by default for safety
+   - **Workaround**: Use a public URL, set `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false` in trusted internal deployments, or edit the draft in WordPress after sync
 
 ### Planned Features
 

@@ -9,7 +9,8 @@ An automated synchronization system that syncs Notion pages to WordPress blog as
 ## 📋 Key Features
 
 - **Automatic Synchronization**: Automatically converts Notion pages to WordPress draft posts
-- **Image Handling**: Downloads images from Notion and uploads them to WordPress media library
+- **Image Handling**: Rewrites synced HTML image URLs after uploading Notion images to the WordPress media library
+- **Link Previews**: Converts Notion bookmark, link preview, and embed blocks into WordPress-ready cards, with YouTube URLs rendered as embeds
 - **Scheduling**: Cron-based periodic synchronization (default: every 5 minutes)
 - **Manual Execution**: Support for manual synchronization via CLI
 - **Error Handling**: Automatic retry on failure (default 3 times) and rollback
@@ -44,8 +45,8 @@ An automated synchronization system that syncs Notion pages to WordPress blog as
 
 - **Runtime**: Node.js 20.x, TypeScript 5.9.3
 - **Notion API**: @notionhq/client 5.9.0
-- **WordPress API**: axios 1.13.5
-- **Content Conversion**: notion-to-md 3.1.9, marked 17.0.1
+- **WordPress API**: axios 1.16.1
+- **Content Conversion**: notion-to-md 3.1.9, marked 17.0.1, cheerio 1.1.2
 - **Scheduler**: node-cron 4.2.1
 - **Database**: better-sqlite3 12.6.2
 - **Notifications**: Telegraf 4.16.3
@@ -66,6 +67,7 @@ src/
 │   ├── job/                      # Job processing + results
 │   ├── page/                     # Page query + sync workflow
 │   ├── image/                    # Image download/upload pipeline
+│   ├── linkPreview/              # Bookmark cards + YouTube embed conversion
 │   ├── notion/                   # Notion integration
 │   ├── wordPress/                # WordPress integration
 │   ├── notification/             # Notifications (Telegram)
@@ -86,6 +88,7 @@ src/
 - No deletion sync: WordPress posts are retained even when deleted in Notion
 - No category/tag sync: WordPress defaults are used
 - No duplicate image check: There is no function to detect duplicate images or prevent uploads
+- Link preview metadata is best-effort: unsupported, private/internal-network, slow, or oversized URLs fall back to a simple card unless `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false`
 
 ## 🔒 Security
 
@@ -93,6 +96,7 @@ src/
 - WordPress API recommends HTTPS (HTTP allowed for localhost/development environments)
 - All credentials are managed via environment variables
 - Enhanced WordPress account security using Application Passwords
+- Link preview metadata fetches block localhost/private/internal networks by default. Disable this only for trusted internal blog networks because it expands SSRF exposure.
 
 ## 📄 License
 

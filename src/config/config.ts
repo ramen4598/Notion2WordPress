@@ -40,6 +40,9 @@ export interface Config {
   maxConcurrentImageDownloads: number; // Max number of concurrent image downloads
   imageDownloadTimeoutMs: number;
 
+  // Link Preview
+  linkPreviewBlockPrivateNetworks: boolean;
+
   // Retry
   maxRetryAttempts: number; // maximum number of retry attempts
   retryInitialDelayMs: number; // starting delay for retries in milliseconds
@@ -103,6 +106,9 @@ export const config: Config = {
   // Image Download
   maxConcurrentImageDownloads: getEnvNumber('MAX_CONCURRENT_IMAGE_DOWNLOADS', 3),
   imageDownloadTimeoutMs: getEnvNumber('IMAGE_DOWNLOAD_TIMEOUT_MS', 30000),
+
+  // Link Preview
+  linkPreviewBlockPrivateNetworks: getEnvBoolean('LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS', true),
 
   // Retry
   maxRetryAttempts: getEnvNumber('MAX_RETRY_ATTEMPTS', 3),

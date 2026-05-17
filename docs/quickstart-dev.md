@@ -1,7 +1,8 @@
 # Quickstart Guide: Notion to WordPress Sync for Developers
 
-**Date**: 2026-02-13  
-**Version**: 1.3.0
+**Date**: 2026-05-16
+
+**Version**: 1.4.0
 
 ## Overview
 
@@ -59,8 +60,9 @@ npm install
 
 Installed versions:
 - `@notionhq/client`: 5.9.0
-- `axios`: 1.13.5
+- `axios`: 1.16.1
 - `better-sqlite3`: 12.6.2
+- `cheerio`: 1.1.2
 - `dotenv`: 17.2.4
 - `form-data`: 4.0.5
 - `marked`: 17.0.1
@@ -98,6 +100,7 @@ Edit `.env` with your credentials:
 | `NODE_ENV` | ❌ | `development` | Environment (development/production) |
 | `MAX_CONCURRENT_IMAGE_DOWNLOADS` | ❌ | `3` | Maximum concurrent image downloads |
 | `IMAGE_DOWNLOAD_TIMEOUT_MS` | ❌ | `30000` | Image download timeout in milliseconds |
+| `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS` | ❌ | `true` | Block localhost/private/internal link preview metadata fetches |
 | `MAX_RETRY_ATTEMPTS` | ❌ | `3` | Maximum retry attempts for failed operations |
 | `RETRY_INITIAL_DELAY_MS` | ❌ | `1000` | Initial retry delay in milliseconds |
 | `RETRY_MAX_DELAY_MS` | ❌ | `30000` | Maximum retry delay in milliseconds |
@@ -270,6 +273,8 @@ docker compose logs -f
 6. **Review in WordPress**: Log in and find draft post
 7. **Publish**: Manually publish after review
 
+Supported content includes standard Notion text content, images, Notion `bookmark`, `link_preview`, and `embed` blocks. YouTube URLs are rendered as responsive iframe HTML blocks; other supported URLs are rendered as bookmark cards.
+
 ### Checking Sync Status
 
 **View recent jobs**:
@@ -358,6 +363,18 @@ docker exec notion2wp npm run sync:manual
 
 ---
 
+#### 6. Bookmark, link preview, or embed falls back to URL-only card
+
+**Cause**: Metadata fetching is best-effort. The fetcher blocks unsupported protocols, localhost/private/internal-network targets by default, unsafe redirects, non-HTML responses, responses over 512 KiB, and requests that exceed the 5 second timeout.
+
+**Solution**:
+- Use a public HTTP/HTTPS URL if a rich preview is required
+- Expect private/internal URLs to render as a simple fallback card unless `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false`
+- Set `LINK_PREVIEW_BLOCK_PRIVATE_NETWORKS=false` only in trusted internal deployments that need rich previews for internal blog links
+- Check logs for `Failed to fetch link preview metadata` when debugging
+
+---
+
 ### Logs
 
 ```bash
@@ -371,10 +388,11 @@ docker compose logs -f
 
 1. Create test Notion page
 2. Add sample content + image
-3. Set status to `"adding"`
-4. Wait for sync notification
-5. Verify WordPress draft exists
-6. Clean up: Delete WP post, set Notion status to `"writing"`
+3. Add a Notion bookmark, link preview, embed block, and YouTube URL when validating content conversion
+4. Set status to `"adding"`
+5. Wait for sync notification
+6. Verify WordPress draft exists with images, bookmark cards, and YouTube embed HTML
+7. Clean up: Delete WP post, set Notion status to `"writing"`
 
 ---
 <br><br>
@@ -436,7 +454,7 @@ A: No. MVP only creates new drafts.
 A: Mapping remains in database. Future sync won't recreate (idempotency not in MVP).
 
 **Q: Can I customize the HTML output format?**  
-A: No. This project depends on `notion-to-md` for conversion.
+A: Not through configuration. The project uses `notion-to-md`, `marked`, and built-in HTML post-processing for images, bookmark cards, and YouTube embeds.
 
 **Q: How do I pause syncing temporarily?**  
 A: Stop the Docker container: `docker compose stop`. Restart when ready.

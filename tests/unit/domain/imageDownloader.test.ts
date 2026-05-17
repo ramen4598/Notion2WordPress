@@ -91,4 +91,21 @@ describe('ImageDownloader', () => {
             expect(result.filename).toBe('image-uuid');
         });
     });
+
+    describe('content type handling', () => {
+        const mockImageBuffer = Buffer.from('fake-image-data');
+
+        it('should use the first string when content-type header is an array', async () => {
+            vi.mocked(axios.get).mockResolvedValue({
+                data: mockImageBuffer,
+                headers: { 'content-type': ['image/webp', 'image/png'] },
+            });
+
+            const result = await imageDownloader.download({
+                url: 'https://example.com/my-image.webp',
+            });
+
+            expect(result.contentType).toBe('image/webp');
+        });
+    });
 });

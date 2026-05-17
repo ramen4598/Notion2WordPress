@@ -38,7 +38,7 @@ class NotionImageDownloader implements IImageDownloader {
       const filename = this.getFilenameFromUrl(url);
       const buffer = Buffer.from(response.data);
       const hash = this.calculateHash(buffer);
-      const contentType = response.headers['content-type'] || 'image/jpeg';
+      const contentType = this.getContentType(response.headers['content-type']);
       const size = buffer.length;
 
       logger.debug('imageDownloader - Downloaded image', {
@@ -58,6 +58,18 @@ class NotionImageDownloader implements IImageDownloader {
 
   private calculateHash(buffer: Buffer): string {
     return crypto.createHash('sha256').update(buffer).digest('hex');
+  }
+
+  private getContentType(header: unknown): string {
+    if (typeof header === 'string' && header.length > 0) {
+      return header;
+    }
+
+    if (Array.isArray(header) && typeof header[0] === 'string' && header[0].length > 0) {
+      return header[0];
+    }
+
+    return 'image/jpeg';
   }
 
   // For logging, remove query parameters and fragments

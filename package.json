@@ -34,7 +34,7 @@
     "better-sqlite3": "12.6.2",
     "cheerio": "1.1.2",
     "dotenv": "17.2.4",
-    "form-data": "4.0.5",
+    "form-data": "4.0.6",
     "marked": "17.0.1",
     "node-cron": "4.2.1",
     "notion-to-md": "3.1.9",
